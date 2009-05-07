@@ -1,0 +1,23 @@
+#
+# kintara: malkier xmpp server
+# bin/kintara: instantiates a new +Kintara+ object
+#
+# Copyright (c) 2004-2009 Eric Will <rakaur@malkier.net>
+#
+
+# Prepare the environment.
+$:  << File.join(Dir.getwd, 'lib')
+$0  = 'kintara'
+
+# Import required kintara modules.
+require 'kintara'
+
+# Start a new instance of the application.
+begin
+    Kintara.new
+rescue Exception => err
+    # XXX - eventually put logging and such here.
+    raise
+end
+
+exit 0

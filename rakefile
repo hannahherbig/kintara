@@ -1,0 +1,66 @@
+#
+# kintara: malkier xmpp server
+# rakefile: ruby makefile
+#
+# Copyright (c) 2004-2009 Eric Will <rakaur@malkier.net>
+#
+
+# Import required Ruby modules.
+%w(rake/rdoctask rake/testtask rake/gempackagetask rake/packagetask).each do |m|
+    require m
+end
+
+#
+# Default task - unit tests.
+#
+# $ rake
+#
+task :default => [:test]
+
+Rake::TestTask.new do |t|
+    t.libs << 'test'
+    t.test_files = %w(test/ts_kintara.rb)
+end
+
+#
+# Documentation generation.
+#
+# $ rake rdoc
+#
+Rake::RDocTask.new do |r|
+    r.rdoc_dir = 'doc/rdoc'
+    r.options << '--line-numbers' << '--inline-source'
+    r.rdoc_files.include('lib/**/*')
+end
+
+#
+# Package generation.
+#
+# $ rake package
+#
+PKG_FILES = FileList['rakefile', 'lib/**/*.rb', 'test/*.rb']
+
+Rake::PackageTask.new('package') do |p|
+    p.name          = 'kintara'
+    p.version       = '1.0'
+    p.need_tar      = false
+    p.need_zip      = false
+    p.package_files = PKG_FILES
+end
+
+spec = Gem::Specification.new do |s|
+    s.name     = 'kintara'
+    s.version  = '1.0'
+    s.author   = 'Eric Will'
+    s.email    = 'rakaur@malkier.net'
+    s.platform = Gem::Platform::RUBY
+    s.summary  = 'a small, lightweight xmpp server'
+    s.files    = PKG_FILES.to_a
+
+    s.require_paths = %w(lib)
+    s.test_file     = 'test/ts_kintara.rb'
+    s.has_rdoc      = true
+end
+
+Rake::GemPackageTask.new(spec) do
+end
