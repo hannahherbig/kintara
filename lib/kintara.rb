@@ -14,10 +14,12 @@ class Kintara
     ME       = 'kintara'
 
     # Version number.
-    VERSION  = '1.0a'
+    V_MAJOR  = 0
+    V_MINOR  = 1
+    V_TINY   = 0
+    MODIFIER = 'alpha'
 
-    # Codename for major version.
-    CODENAME = 'synapse'
+    VERSION  = "#{V_MAJOR}.#{V_MINOR}.#{V_TINY}-#{MODIFIER}"
 
     #
     # Create a new +Kintara+ object, which starts and runs the entire
@@ -26,7 +28,7 @@ class Kintara
     # return:: self
     #
     def initialize
-        puts "#{ME}: version #{CODENAME}-#{VERSION} [#{RUBY_PLATFORM}]"
+        puts "#{ME}: version #{VERSION} [#{RUBY_PLATFORM}]"
 
         # Check to see if we're running on a decent version of ruby.
         if RUBY_VERSION < '1.8.6'
@@ -88,6 +90,21 @@ class Kintara
             puts "#{ME}: warning: all streams will be logged in the clear!"
         end
 
+        # Check to see if we're already running.
+        if File.exists?('var/kintara.pid')
+            curpid = nil
+            File.open('var/kintara.pid', 'r') { |f| curpid = f.read.chomp.to_i }
+
+            begin
+                Process.kill(0, curpid)
+            rescue Errno::ESRCH
+                File.delete('var/kintara.pid')
+            else
+                puts "#{ME}: daemon is already running"
+                abort
+            end
+        end
+
         # Fork into the background
         if willfork
             begin
@@ -102,12 +119,14 @@ class Kintara
                 Dir.chdir(wd)
                 File.umask(0)
             else # This is the parent process.
+                # Write the PID file.
+                Dir.mkdir('var') unless File.exists?('var')
+                File.open('var/kintara.pid', 'w') { |f| f.puts(pid) }
+
                 puts "#{ME}: pid #{pid}"
                 puts "#{ME}: running in background mode from #{Dir.getwd}"
                 abort
             end
-
-            # XXX - write pid/check if running
 
             $stdin.close
             $stdout.close
@@ -117,6 +136,17 @@ class Kintara
             puts "#{ME}: running in foreground mode from #{Dir.getwd}"
         end
 
+        kin_exit
+
         self
+    end
+
+    #######
+    private
+    #######
+
+    def kin_exit
+        File.delete('var/kintara.pid')
+        exit
     end
 end
