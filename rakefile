@@ -4,6 +4,7 @@
 #
 # Copyright (c) 2004-2009 Eric Will <rakaur@malkier.net>
 #
+# encoding: utf-8
 
 # Import required Ruby modules.
 %w(rake/rdoctask rake/testtask rake/gempackagetask rake/packagetask).each do |m|

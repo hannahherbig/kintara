@@ -4,22 +4,36 @@
 #
 # Copyright (c) 2004-2009 Eric Will <rakaur@malkier.net>
 #
+# encoding: utf-8
 
 # Import required Ruby modules
-%w(logger optparse).each { |m| require m }
+%w(logger optparse yaml).each { |m| require m }
+
+# XXX - Since IDN doesn't work in 1.9 yet, we're going to just make sure the
+# qualifying strings are set to be encoded as UTF-8.
+
+# XXX - for quick reference
+#
+# {"domains"=>"malkier.net, optera.org", "logging"=>{"enabled"=>true,
+#  "general"=>"var/log/general.log", "c2s"=>"var/log/c2s.log",
+#  "s2s"=>"var/log/s2s.log"}, "listen"=>{"c2s"=>"*:5222", "s2s"=>"*:5269",
+#  "certificate"=>"etc/cert.pem"}, "authorize"=>{"matches"=>"(.*)"},
+#  "deny"=>nil, "operators"=>{"rakaur"=>"announce"}
 
 # The main application class.
 class Kintara
     # Project name.
-    ME       = 'kintara'
+    ME = 'kintara'
 
     # Version number.
     V_MAJOR  = 0
     V_MINOR  = 1
     V_TINY   = 0
-    MODIFIER = 'alpha'
 
-    VERSION  = "#{V_MAJOR}.#{V_MINOR}.#{V_TINY}-#{MODIFIER}"
+    VERSION  = "#{V_MAJOR}.#{V_MINOR}.#{V_TINY}"
+
+    # Configuration data.
+    @@config = nil
 
     #
     # Create a new +Kintara+ object, which starts and runs the entire
@@ -75,7 +89,7 @@ class Kintara
         end
 
         # Signal handlers.
-        trap(:INT)   { rhu_exit }
+        trap(:INT)   { kin_exit }
         trap(:PIPE)  { :SIG_IGN }
         trap(:CHLD)  { :SIG_IGN }
         trap(:WINCH) { :SIG_IGN }
@@ -83,7 +97,15 @@ class Kintara
         trap(:TTOU)  { :SIG_IGN }
         trap(:TSTP)  { :SIG_IGN }
 
-        # Should probably do config stuff here - XXX
+        # Load configuration file.
+        begin
+            @@config = YAML.load_file('etc/config.yml')
+        rescue Exception => e
+            puts '----------------------------'
+            puts "#{ME}: configure error: #{e}"
+            puts '----------------------------'
+            abort
+        end
 
         if debug
             puts "#{ME}: warning: debug mode enabled"
@@ -119,10 +141,6 @@ class Kintara
                 Dir.chdir(wd)
                 File.umask(0)
             else # This is the parent process.
-                # Write the PID file.
-                Dir.mkdir('var') unless File.exists?('var')
-                File.open('var/kintara.pid', 'w') { |f| f.puts(pid) }
-
                 puts "#{ME}: pid #{pid}"
                 puts "#{ME}: running in background mode from #{Dir.getwd}"
                 abort
@@ -136,9 +154,21 @@ class Kintara
             puts "#{ME}: running in foreground mode from #{Dir.getwd}"
         end
 
+        # Write the PID file.
+        Dir.mkdir('var') unless File.exists?('var')
+        File.open('var/kintara.pid', 'w') { |f| f.puts(pid) }
+
         kin_exit
 
         self
+    end
+
+    ######
+    public
+    ######
+
+    def config
+        @@config
     end
 
     #######
