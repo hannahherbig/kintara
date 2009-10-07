@@ -9,16 +9,18 @@
 # Import required Ruby modules
 %w(logger optparse yaml).each { |m| require m }
 
+# Import required kintara modules
+%w(kintara/server.rb).each { |m| require m }
+
 # XXX - Since IDN doesn't work in 1.9 yet, we're going to just make sure the
 # qualifying strings are set to be encoded as UTF-8.
 
 # XXX - for quick reference
 #
-# {"domains"=>"malkier.net, optera.org", "logging"=>{"enabled"=>true,
-#  "general"=>"var/log/general.log", "c2s"=>"var/log/c2s.log",
-#  "s2s"=>"var/log/s2s.log"}, "listen"=>{"c2s"=>"*:5222", "s2s"=>"*:5269",
-#  "certificate"=>"etc/cert.pem"}, "authorize"=>{"matches"=>"(.*)"},
-#  "deny"=>nil, "operators"=>{"rakaur"=>"announce"}
+# {"domains"=>"malkier.net, optera.org", listen"=>{"c2s"=>"*:5222",
+#  "s2s"=>"*:5269", "certificate"=>"etc/cert.pem"},
+#  "authorize"=>{"matches"=>"(.*)"}, "deny"=>nil,
+#  "operators"=>{"rakaur"=>"announce"}
 
 # The main application class.
 class Kintara
@@ -35,7 +37,11 @@ class Kintara
     # Configuration data.
     @@config = nil
 
-    #
+    # A list of our connections.
+    @@servers = []
+    @@clients = []
+
+    ##
     # Create a new +Kintara+ object, which starts and runs the entire
     # application. Everything starts and ends here.
     #
@@ -158,6 +164,29 @@ class Kintara
         Dir.mkdir('var') unless File.exists?('var')
         File.open('var/kintara.pid', 'w') { |f| f.puts(pid) }
 
+        # Start the listeners.
+        @@config['listen']['c2s'].split.each do |c2s|
+            bind_to, port = c2s.split(':')
+
+            @@servers << XMPPServer.new do |s|
+                s.bind_to = bind_to
+                s.port    = port
+                s.type    = :c2s
+
+                s.logger = false unless logging
+                s.debug  = debug
+            end
+        end
+
+        Thread.abort_on_exception = true if debug
+
+        @@servers.each { |s| Thread.new { s.io_loop } }
+
+        Thread.list.each { |t| t.join unless t == Thread.main }
+
+        p @@servers
+
+        # Exiting...
         kin_exit
 
         self
@@ -169,6 +198,22 @@ class Kintara
 
     def config
         @@config
+    end
+
+    def servers
+        @@servers
+    end
+
+    def add_server(server)
+        @@servers << server
+    end
+
+    def clients
+        @@clients
+    end
+
+    def add_client(client)
+        @@clients << client
     end
 
     #######

@@ -17,18 +17,7 @@
 # Define domains this daemon will service. Sort of like virtual hosts.
 domains: malkier.net, optera.org
 
-# Define logging behavior.
-#
-#   general = daemon events
-#   c2s     = client-to-server events
-#   s2s     = server-to-server events
-#
-logging:
-    enabled: true
-    general: var/log/general.log
-    c2s:     var/log/c2s.log
-    s2s:     var/log/s2s.log
-    
+##
 # Define listen ports. Entries are in the form of host:port.
 #
 # c2s = client-to-server ports. You must define at least one.
@@ -57,7 +46,8 @@ listen:
     s2s: *:5269
 
     certificate: etc/cert.pem
-    
+
+##
 # Define who may connect to this service. The default allows everyone.
 #
 # hosts   = list of hosts that are allowed to connect.
@@ -71,6 +61,7 @@ authorize:
 # This is here to make sure you read the config.
 #die: true
 
+##
 # Define who may NOT connect to this service.
 #
 # hosts   = list of hosts that are allowed to connect.
@@ -79,6 +70,7 @@ deny:
 #   hosts:   127.0.0.1, 192.168.0.1
 #   matches: 192\.168\.2\.(\d+)
 
+##
 # Define users that are allowed to perform administrative operations.
 #
 # Available privileges:
