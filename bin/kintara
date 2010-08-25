@@ -1,4 +1,4 @@
-#
+#!/usr/bin/env ruby
 # kintara: malkier xmpp server
 # bin/kintara: instantiates a new +Kintara+ object
 #

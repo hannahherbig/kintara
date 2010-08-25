@@ -7,7 +7,7 @@
 # encoding: utf-8
 
 module Loggable
-    #
+    ##
     # Logs a regular message.
     # ---
     # message:: the string to log
@@ -17,7 +17,7 @@ module Loggable
         @logger.info(caller[0].split('/')[-1]) { message } if @logger
     end
 
-    #
+    ##
     # Logs a debug message.
     # ---
     # message:: the string to log
@@ -29,7 +29,7 @@ module Loggable
         @logger.debug(caller[0].split('/')[-1]) { message } if @debug
     end
 
-    #
+    ##
     # Sets the logging object to use.
     # If it quacks like a Logger object, it should work.
     # ---

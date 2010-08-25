@@ -10,7 +10,7 @@
 %w(logger optparse yaml).each { |m| require m }
 
 # Import required application modules
-%w(database server).each { |m| require 'kintara/' + m }
+%w(database timer server).each { |m| require 'kintara/' + m }
 
 # XXX - Since IDN doesn't work in 1.9 yet, we're going to just make sure the
 # qualifying strings are set to be encoded as UTF-8.
@@ -40,7 +40,10 @@ class Kintara
     @@config = nil
 
     # Application-wide Logger
-    @logger = nil
+    @@logger = nil
+
+    # Application-wide time
+    @@time = Time.now.to_f
 
     # A list of our connections
     @@servers = []
@@ -99,6 +102,9 @@ class Kintara
             abort
         end
 
+        # Interpreter warnings
+        $-w = true if debug
+
         # Signal handlers
         trap(:INT)   { app_exit }
         trap(:PIPE)  { :SIG_IGN }
@@ -122,6 +128,8 @@ class Kintara
             puts "#{ME}: warning: debug mode enabled"
             puts "#{ME}: warning: all streams will be logged in the clear!"
         end
+
+        # XXX - load db
 
         # Check to see if we're already running
         if File.exists?('var/kintara.pid')
@@ -160,17 +168,22 @@ class Kintara
             $stdin.close
             $stdout.close
             $stderr.close
+
+            # Set up logging
+            @@logger = Logger.new('var/kintara.log', 'weekly') if logging or debug
         else
             puts "#{ME}: pid #{Process.pid}"
             puts "#{ME}: running in foreground mode from #{Dir.getwd}"
+
+            # Set up logging
+            @@logger = Logger.new($stdout) if logging or debug
         end
 
         # Write the PID file
         Dir.mkdir('var') unless Dir.exists?('var')
         File.open('var/kintara.pid', 'w') { |f| f.puts(pid) }
 
-        # Set up logging
-        @logger = Logger.new('var/kintara.log', 'weekly') if logging or debug
+        # XXX - timers
 
         # Start the listeners
         @@config['listen']['c2s'].split.each do |c2s|
@@ -181,7 +194,7 @@ class Kintara
                 s.port    = port
                 s.type    = :c2s
 
-                s.logger = @logger if logging
+                s.logger = @@logger if logging
                 s.debug  = debug
             end
         end
@@ -192,7 +205,7 @@ class Kintara
 
         Thread.list.each { |t| t.join unless t == Thread.main }
 
-        @logger.debug(caller[0].split('/')[-1]) { @@servers }
+        @@logger.debug(caller[0].split('/')[-1]) { @@servers }
 
         # Exiting...
         app_exit
@@ -205,23 +218,31 @@ class Kintara
     public
     ######
 
-    def config
+    def Kintara.config
         @@config
     end
 
-    def servers
+    def Kintara.time
+        @@time
+    end
+
+    def Kintara.time=(value)
+        @@time = value
+    end
+
+    def Kintara.servers
         @@servers
     end
 
-    def add_server(server)
+    def Kintara.add_server(server)
         @@servers << server
     end
 
-    def clients
+    def Kintara.clients
         @@clients
     end
 
-    def add_client(client)
+    def Kintara.add_client(client)
         @@clients << client
     end
 
@@ -230,7 +251,7 @@ class Kintara
     #######
 
     def app_exit
-        @logger.close if @logger
+        @@logger.close if @@logger
         File.delete('var/kintara.pid')
         exit
     end
