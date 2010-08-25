@@ -2,18 +2,18 @@
 # kintara: malkier xmpp server
 # bin/kintara: instantiates a new +Kintara+ object
 #
-# Copyright (c) 2004-2009 Eric Will <rakaur@malkier.net>
+# Copyright (c) 2003-2010 Eric Will <rakaur@malkier.net>
 #
 # encoding: utf-8
 
-# Prepare the environment.
-$:  << File.join(Dir.getwd, 'lib')
-$0  = 'kintara'
+# Prepare the environment
+$: << File.join(Dir.getwd, 'lib')
+$0 = 'kintara'
 
-# Import required kintara modules.
+# Import required application modules
 require 'kintara'
 
-# Start a new instance of the application.
+# Start a new instance of the application
 begin
     Kintara.new
 rescue Exception => err

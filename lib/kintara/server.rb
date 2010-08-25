@@ -1,15 +1,15 @@
 #
 # kintara: malkier xmpp server
-# lib/kintara/server.rb: the server class.
+# lib/kintara/server.rb: the server class
 #
-# Copyright (c) 2004-2009 Eric Will <rakaur@malkier.net>
+# Copyright (c) 2003-2010 Eric Will <rakaur@malkier.net>
 #
 # encoding: utf-8
 
-# Import required Ruby modules.
+# Import required Ruby modules
 %w(logger socket).each { |m| require m }
 
-# Import required kintara modules.
+# Import required application modules
 %w(kintara/loggable).each { |m| require m }
 
 class XMPPServer
@@ -30,17 +30,17 @@ class XMPPServer
         # Is our socket dead?
         @dead = false
 
-        # Our Logger object.
+        # Our Logger object
         self.logger = Logger.new($stderr)
 
-        # If we have a block let it set up our instance attributes.
+        # If we have a block let it set up our instance attributes
         yield(self) if block_given?
 
         @logger.progname = "#@bind_to:#@port"
 
-        debug("new #{@type.to_s} server at #@bind_to:#@port")
+        debug("new #@type server at #@bind_to:#@port")
 
-        # Start up the listener.
+        # Start up the listener
         begin
             if @bind_to == '*'
                 @socket = TCPServer.new(@port)
@@ -50,6 +50,8 @@ class XMPPServer
         rescue Exception => e
             log("#{Kintara::ME}: error acquiring socket for #@bind_to:#@port")
             raise
+        else
+            debug("#@type server successfully listening at #@bind_to:#@port")
         end
 
         self

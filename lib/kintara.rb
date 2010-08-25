@@ -1,19 +1,21 @@
 #
 # kintara: malkier xmpp server
-# bin/kintara: startup routines, etc
+# lib/kintara.rb: startup routines, etc
 #
-# Copyright (c) 2004-2009 Eric Will <rakaur@malkier.net>
+# Copyright (c) 2003-2010 Eric Will <rakaur@malkier.net>
 #
 # encoding: utf-8
 
 # Import required Ruby modules
 %w(logger optparse yaml).each { |m| require m }
 
-# Import required kintara modules
-%w(kintara/server.rb).each { |m| require m }
+# Import required application modules
+%w(database server).each { |m| require 'kintara/' + m }
 
 # XXX - Since IDN doesn't work in 1.9 yet, we're going to just make sure the
 # qualifying strings are set to be encoded as UTF-8.
+Encoding.default_internal = 'UTF-8'
+Encoding.default_external = 'UTF-8'
 
 # XXX - for quick reference
 #
@@ -22,22 +24,25 @@
 #  "authorize"=>{"matches"=>"(.*)"}, "deny"=>nil,
 #  "operators"=>{"rakaur"=>"announce"}
 
-# The main application class.
+# The main application class
 class Kintara
-    # Project name.
+    # Project name
     ME = 'kintara'
 
-    # Version number.
+    # Version number
     V_MAJOR  = 0
     V_MINOR  = 1
     V_TINY   = 0
 
     VERSION  = "#{V_MAJOR}.#{V_MINOR}.#{V_TINY}"
 
-    # Configuration data.
+    # Configuration data
     @@config = nil
 
-    # A list of our connections.
+    # Application-wide Logger
+    @logger = nil
+
+    # A list of our connections
     @@servers = []
     @@clients = []
 
@@ -50,7 +55,7 @@ class Kintara
     def initialize
         puts "#{ME}: version #{VERSION} [#{RUBY_PLATFORM}]"
 
-        # Check to see if we're running on a decent version of ruby.
+        # Check to see if we're running on a decent version of ruby
         if RUBY_VERSION < '1.8.6'
             puts "#{ME}: requires at least ruby 1.8.6"
             puts "#{ME}: you have #{RUBY_VERSION}"
@@ -60,19 +65,19 @@ class Kintara
             puts "#{ME}: you have #{RUBY_VERSION}"
         end
 
-        # Check to see if we're running as root.
+        # Check to see if we're running as root
         if Process.euid == 0
             puts "#{ME}: refuses to run as root"
             abort
         end
 
-        # Some defaults for state.
+        # Some defaults for state
         logging  = true
         debug    = false
         willfork = RUBY_PLATFORM =~ /win32/i ? false : true
         wd       = Dir.getwd
 
-        # Do command-line options.
+        # Do command-line options
         opts = OptionParser.new
 
         dd = 'Enable debug logging.'
@@ -94,8 +99,8 @@ class Kintara
             abort
         end
 
-        # Signal handlers.
-        trap(:INT)   { kin_exit }
+        # Signal handlers
+        trap(:INT)   { app_exit }
         trap(:PIPE)  { :SIG_IGN }
         trap(:CHLD)  { :SIG_IGN }
         trap(:WINCH) { :SIG_IGN }
@@ -103,7 +108,7 @@ class Kintara
         trap(:TTOU)  { :SIG_IGN }
         trap(:TSTP)  { :SIG_IGN }
 
-        # Load configuration file.
+        # Load configuration file
         begin
             @@config = YAML.load_file('etc/config.yml')
         rescue Exception => e
@@ -118,7 +123,7 @@ class Kintara
             puts "#{ME}: warning: all streams will be logged in the clear!"
         end
 
-        # Check to see if we're already running.
+        # Check to see if we're already running
         if File.exists?('var/kintara.pid')
             curpid = nil
             File.open('var/kintara.pid', 'r') { |f| curpid = f.read.chomp.to_i }
@@ -142,11 +147,11 @@ class Kintara
                 abort
             end
 
-            # This is the child process.
+            # This is the child process
             unless pid
                 Dir.chdir(wd)
                 File.umask(0)
-            else # This is the parent process.
+            else # This is the parent process
                 puts "#{ME}: pid #{pid}"
                 puts "#{ME}: running in background mode from #{Dir.getwd}"
                 abort
@@ -160,11 +165,14 @@ class Kintara
             puts "#{ME}: running in foreground mode from #{Dir.getwd}"
         end
 
-        # Write the PID file.
-        Dir.mkdir('var') unless File.exists?('var')
+        # Write the PID file
+        Dir.mkdir('var') unless Dir.exists?('var')
         File.open('var/kintara.pid', 'w') { |f| f.puts(pid) }
 
-        # Start the listeners.
+        # Set up logging
+        @logger = Logger.new('var/kintara.log', 'weekly') if logging or debug
+
+        # Start the listeners
         @@config['listen']['c2s'].split.each do |c2s|
             bind_to, port = c2s.split(':')
 
@@ -173,7 +181,7 @@ class Kintara
                 s.port    = port
                 s.type    = :c2s
 
-                s.logger = false unless logging
+                s.logger = @logger if logging
                 s.debug  = debug
             end
         end
@@ -184,11 +192,12 @@ class Kintara
 
         Thread.list.each { |t| t.join unless t == Thread.main }
 
-        p @@servers
+        @logger.debug(caller[0].split('/')[-1]) { @@servers }
 
         # Exiting...
-        kin_exit
+        app_exit
 
+        # Return...
         self
     end
 
@@ -220,7 +229,8 @@ class Kintara
     private
     #######
 
-    def kin_exit
+    def app_exit
+        @logger.close if @logger
         File.delete('var/kintara.pid')
         exit
     end

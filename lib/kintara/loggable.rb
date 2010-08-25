@@ -1,8 +1,8 @@
 #
 # kintara: malkier xmpp server
-# lib/kintara/server.rb: the server class.
+# lib/kintara/loggable.rb: a mixin for easy logging
 #
-# Copyright (c) 2004-2009 Eric Will <rakaur@malkier.net>
+# Copyright (c) 2003-2010 Eric Will <rakaur@malkier.net>
 #
 # encoding: utf-8
 
@@ -42,7 +42,7 @@ module Loggable
         # Set to false/nil to disable logging...
         return unless @logger
 
-        @logger.datetime_format = '%b %d %H:%M:%S '
+        @logger.datetime_format = '%m/%d %H:%M:%S '
 
         # We only have 'logging' and 'debugging', so just set the
         # object to show all levels. I might change this someday.

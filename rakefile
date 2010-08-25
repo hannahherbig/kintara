@@ -2,7 +2,7 @@
 # kintara: malkier xmpp server
 # rakefile: ruby makefile
 #
-# Copyright (c) 2004-2009 Eric Will <rakaur@malkier.net>
+# Copyright (c) 2003-2010 Eric Will <rakaur@malkier.net>
 #
 # encoding: utf-8
 
@@ -12,7 +12,7 @@
 end
 
 #
-# Default task - unit tests.
+# Default task - unit tests
 #
 # $ rake
 #
@@ -24,7 +24,7 @@ Rake::TestTask.new do |t|
 end
 
 #
-# Documentation generation.
+# Documentation generation
 #
 # $ rake rdoc
 #
@@ -35,7 +35,7 @@ Rake::RDocTask.new do |r|
 end
 
 #
-# Package generation.
+# Package generation
 #
 # $ rake package
 #
