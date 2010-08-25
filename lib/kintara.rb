@@ -42,12 +42,11 @@ class Kintara
     # Application-wide Logger
     @@logger = nil
 
+    # A list of our servers
+    @@servers = []
+
     # Application-wide time
     @@time = Time.now.to_f
-
-    # A list of our connections
-    @@servers = []
-    @@clients = []
 
     ##
     # Create a new +Kintara+ object, which starts and runs the entire
@@ -189,7 +188,7 @@ class Kintara
         @@config['listen']['c2s'].split.each do |c2s|
             bind_to, port = c2s.split(':')
 
-            @@servers << XMPPServer.new do |s|
+            @@servers << XMPP::Server.new do |s|
                 s.bind_to = bind_to
                 s.port    = port
                 s.type    = :c2s
@@ -236,14 +235,6 @@ class Kintara
 
     def Kintara.add_server(server)
         @@servers << server
-    end
-
-    def Kintara.clients
-        @@clients
-    end
-
-    def Kintara.add_client(client)
-        @@clients << client
     end
 
     #######

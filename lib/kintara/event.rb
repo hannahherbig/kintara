@@ -28,7 +28,6 @@ end
 
 # A queue of events, with handlers (one per object)
 class EventQueue
-
     ##
     # instance attributes
     attr_reader :queue, :handlers
