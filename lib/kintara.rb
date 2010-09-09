@@ -170,7 +170,9 @@ class Kintara
             $stderr.close
 
             # Set up logging
-            @@logger = Logger.new('var/kintara.log', 'weekly') if logging or debug
+            if logging or debug
+                @@logger = Logger.new('var/kintara.log', 'weekly')
+            end
         else
             puts "#{ME}: pid #{Process.pid}"
             puts "#{ME}: running in foreground mode from #{Dir.getwd}"
@@ -181,7 +183,7 @@ class Kintara
 
         # Write the PID file
         Dir.mkdir('var') unless Dir.exists?('var')
-        File.open('var/kintara.pid', 'w') { |f| f.puts(pid) }
+        File.open('var/kintara.pid', 'w') { |f| f.puts(Process.pid) }
 
         # XXX - timers
 
