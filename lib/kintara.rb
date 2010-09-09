@@ -106,6 +106,7 @@ class Kintara
 
         # Signal handlers
         trap(:INT)   { app_exit }
+        trap(:TERM)  { app_exit }
         trap(:PIPE)  { :SIG_IGN }
         trap(:CHLD)  { :SIG_IGN }
         trap(:WINCH) { :SIG_IGN }
