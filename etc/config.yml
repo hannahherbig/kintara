@@ -27,25 +27,23 @@ domains: malkier.net, optera.org
 # If you're like most people you'll have to generate
 # your own, self-signed certificate rather than pay
 # an ungodly sum of money to some company. In order to
-# do this you need to issue these commands:
+# do this you need to run something along the lines of:
 #                                          
-# To generate a private key to self-sign:
-#     openssl genrsa -out cert.key -rand /dev/urandom 1024
+#     openssl req -new -x509 -days 365 -sha1 -newkey rsa:1024 \
+#                 -nodes -keyout server.key -out server.crt \
+#                 -subj '/O=Company/OU=Department/CN=xmpp.example.com'
 #
-# To generate a self-signed certificate:
-#     openssl req -x509 -new -key cert.key -out cert.pem
+# Use server.crt for this directive.
 #
-# Move the resulting "cert.pem" file to this location.
-#
-# If you have otherwise acquired a certificate and a separate
-# private key, you need to combine them into one file and put
-# that here.
+# private_key = The private key used for STARTTLS. See above.
+# Use server.key for this directive.
 #
 listen:
-    c2s: *:5222
+    c2s: 10.0.1.30:4018
     s2s: *:5269
 
-    certificate: etc/cert.pem
+    certificate: etc/server.crt
+    private_key: etc/server.key
 
 ##
 # Define who may connect to this service. The default allows everyone.
@@ -78,3 +76,4 @@ deny:
 #   announce = May send server-wide messages.
 operators:
     rakaur: announce
+

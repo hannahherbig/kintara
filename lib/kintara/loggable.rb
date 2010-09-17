@@ -49,3 +49,4 @@ module Loggable
         @logger.level = Logger::DEBUG
     end
 end # module Loggable
+

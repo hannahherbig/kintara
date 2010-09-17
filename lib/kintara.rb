@@ -19,10 +19,13 @@ Encoding.default_external = 'UTF-8'
 
 # XXX - for quick reference
 #
-# {"domains"=>"malkier.net, optera.org", listen"=>{"c2s"=>"*:5222",
-#  "s2s"=>"*:5269", "certificate"=>"etc/cert.pem"},
-#  "authorize"=>{"matches"=>"(.*)"}, "deny"=>nil,
-#  "operators"=>{"rakaur"=>"announce"}
+# { :domains => "malkier.net, optera.org",
+#   :listen  => { :c2s => "*:5222",
+#                 :s2s => "*:5269",
+#                 :certificate => "etc/cert.pem" },
+#   :authorize => { :matches => "(.*)" },
+#                   :deny    => nil,
+#   :operators => { :rakaur  => "announce" }
 
 # The main application class
 class Kintara
@@ -122,6 +125,8 @@ class Kintara
             puts "#{ME}: configure error: #{e}"
             puts '----------------------------'
             abort
+        else
+            keys_to_sym!(@@config)
         end
 
         if debug
@@ -188,13 +193,15 @@ class Kintara
         # XXX - timers
 
         # Start the listeners
-        @@config['listen']['c2s'].split.each do |c2s|
-            bind_to, port = c2s.split(':')
+        @@config[:listen].each do |type, value|
+            next unless [:c2s, :s2s].include?(type)
+
+            bind_to, port = value.split(':')
 
             @@servers << XMPP::Server.new do |s|
                 s.bind_to = bind_to
                 s.port    = port
-                s.type    = :c2s
+                s.type    = type
 
                 s.logger = @@logger if logging
                 s.debug  = debug
@@ -203,9 +210,8 @@ class Kintara
 
         Thread.abort_on_exception = true if debug
 
-        @@servers.each { |s| Thread.new { s.io_loop } }
-
-        Thread.list.each { |t| t.join unless t == Thread.main }
+        @@servers.each { |s| s.thread = Thread.new { s.io_loop } }
+        @@servers.each { |s| s.thread.join }
 
         @@logger.debug(caller[0].split('/')[-1]) { @@servers }
 
@@ -244,9 +250,26 @@ class Kintara
     private
     #######
 
+    def keys_to_sym!(hash)
+        to_del, to_add, vals = [], [], []
+
+        hash.each do |k, v|
+            to_del << k
+            to_add << k.to_sym
+            vals   << v
+        end
+
+        to_del.each { |d| hash.delete(d) }
+        to_add.each_with_index { |a, i| hash[a] = vals[i] }
+        vals.each { |v| keys_to_sym!(v) if v.is_a?(Hash) }
+
+        hash
+    end
+
     def app_exit
         @@logger.close if @@logger
         File.delete('var/kintara.pid')
         exit
     end
 end
+

@@ -21,3 +21,4 @@ rescue LoadError
     puts 'kintara: gem install --remote sequel'
     abort
 end
+

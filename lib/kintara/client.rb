@@ -62,6 +62,20 @@ class Client
     private
     #######
 
+    #
+    # Takes care of setting some stuff when we die.
+    # ---
+    # bool:: +true+ or +false+
+    # returns:: +nil+
+    #
+    def dead=(bool)
+        if bool
+            debug("client for #@host is dead")
+            @dead   = true
+            @socket = nil
+            @state  = :none
+        end
+    end
 
     ######
     public
@@ -69,6 +83,10 @@ class Client
 
     def need_write?
         @sendq.empty? ? false : true
+    end
+
+    def dead?
+        @dead
     end
 
     ##
@@ -88,6 +106,7 @@ class Client
         unless ret
             debug("client from #@host disconnected")
             @socket.close
+            self.dead = true
             return
         end
         
@@ -138,3 +157,4 @@ class Client
 end
 
 end # module XMPP
+

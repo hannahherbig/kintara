@@ -21,8 +21,9 @@ class Server
 
     ##
     # instance attributes
-    attr_reader :socket
-    attr_writer :port, :bind_to, :type, :debug
+    attr_accessor :thread
+    attr_reader   :socket
+    attr_writer   :bind_to, :debug, :port, :type
 
     # A simple Exception class for some errors
     class Error < Exception
@@ -130,6 +131,14 @@ class Server
             # Update the current time
             Kintara.time = Time.now.to_f
 
+            #puts "-------------------------------------------------"
+            #ObjectSpace.each_object do |o|
+            #    puts o if o.kind_of? XMPP::Server
+            #    puts o if o.kind_of? XMPP::Client
+            #    puts o if o.kind_of? Timer
+            #end
+            #puts "-------------------------------------------------"
+
             # Is our server's listening socket dead?
             if dead?
                 debug("listener has died on #@host:#@port, restarting")
@@ -142,18 +151,18 @@ class Server
             # events, so we keep running until it's empty.
             @eventq.run while @eventq.needs_ran?
 
+            # Are any of our clients dead?
+            @clients.delete_if { |client| client.dead? }
+
             readfds  = [@socket]
             writefds = []
 
             @clients.each do |client|
-                if client.need_write? # XXX (sendq has data)
-                    writefds << client.socket
-                else
-                    readfds  << client.socket
-                end
+                readfds  << client.socket
+                writefds << client.socket if client.need_write?
             end
 
-            ret = IO.select(readfds, writefds, nil, 0)
+            ret = IO.select(readfds, writefds, nil, nil)
 
             next unless ret
 
@@ -175,3 +184,4 @@ class Server
 end
 
 end # module XMPP
+

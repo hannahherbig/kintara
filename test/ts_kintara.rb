@@ -12,3 +12,4 @@ class NoOp < Test::Unit::TestCase
     def test_noop
     end
 end
+
