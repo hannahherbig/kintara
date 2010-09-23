@@ -11,6 +11,8 @@
     require m
 end
 
+VER = '0.1.0'
+
 #
 # Default task - unit tests
 #
@@ -43,7 +45,7 @@ PKG_FILES = FileList['rakefile', 'lib/**/*.rb', 'test/*.rb']
 
 Rake::PackageTask.new('package') do |p|
     p.name          = 'kintara'
-    p.version       = '1.0'
+    p.version       = VER
     p.need_tar      = false
     p.need_zip      = false
     p.package_files = PKG_FILES
@@ -51,7 +53,7 @@ end
 
 spec = Gem::Specification.new do |s|
     s.name     = 'kintara'
-    s.version  = '1.0'
+    s.version  = VER
     s.author   = 'Eric Will'
     s.email    = 'rakaur@malkier.net'
     s.platform = Gem::Platform::RUBY

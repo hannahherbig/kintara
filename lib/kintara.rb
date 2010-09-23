@@ -35,9 +35,9 @@ class Kintara
     # Version number
     V_MAJOR  = 0
     V_MINOR  = 1
-    V_TINY   = 0
+    V_PATCH  = 0
 
-    VERSION  = "#{V_MAJOR}.#{V_MINOR}.#{V_TINY}"
+    VERSION  = "#{V_MAJOR}.#{V_MINOR}.#{V_PATCH}"
 
     # Configuration data
     @@config = nil
@@ -203,8 +203,8 @@ class Kintara
                 s.port    = port
                 s.type    = type
 
-                s.logger = @@logger if logging
-                s.debug  = debug
+                s.logger  = @@logger if logging
+                s.debug   = debug
             end
         end
 
