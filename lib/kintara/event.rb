@@ -8,7 +8,6 @@
 
 # Contains information about a posted event
 class Event
-
     ##
     # instance attributes
     attr_reader :event, :args

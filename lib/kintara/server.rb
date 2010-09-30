@@ -154,6 +154,11 @@ class Server
             # Are any of our clients dead?
             @clients.delete_if { |client| client.dead? }
 
+            # Run our client's event loops. Same deal as before.
+            @clients.each do |client|
+                client.run_events while client.has_events?
+            end
+
             readfds  = [@socket]
             writefds = []
 

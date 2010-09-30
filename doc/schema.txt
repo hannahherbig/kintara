@@ -1,0 +1,60 @@
+CREATE TABLE users (id INTEGER PRIMARY KEY, node TEXT, password TEXT, domain TEXT, vcard TEXT);
+CREATE TABLE roster_entries (id INTEGER PRIMARY KEY, user_id INTEGER, remote_xid TEXT, alias TEXT, subscription TEXT, ask INTEGER, FOREIGN KEY (user_id) REFERENCES users (id));
+CREATE TABLE offline_stanzas (id INTEGER PRIMARY KEY, user_id INTEGER, stanza TEXT, timestamp TIMESTAMP, FOREIGN KEY (user_id) REFERENCES users (id));
+CREATE TABLE groups (id INTEGER PRIMARY KEY, name TEXT, roster_entry_id INTEGER, FOREIGN KEY (roster_entry_id) REFERENCES roster_entries (id));
+
+# Create schema
+
+DB = Sequel.sqlite('etc/kintara.db')
+
+DB.create_table :users do
+    primary_key :id
+    String      :node, :unique = true
+    String      :password
+    String      :domain
+    String      :vcard
+end
+
+DB.create_table :roster_entries do
+    primary_key :id
+    foreign_key :user_id, :users
+    String      :remote_xid
+    String      :alias
+    String      :subscription
+    FalseClass  :ask
+end
+
+DB.create_table :offline_stanzas do
+    primary_key :id
+    foreign_key :user_id, :users
+    String      :stanza
+    Time        :timestamp
+end
+
+DB.create_table :groups do
+    primary_key :id
+    foreign_key :roster_entry_id, :roster_entries
+
+    String :name
+end
+
+# Models
+
+class User < Sequel::Model
+    one_to_many :roster_entries
+    one_to_many :offline_stanzas
+end
+
+class RosterEntry < Sequel::Model
+    one_to_many :groups
+    many_to_one :user
+end
+
+class OfflineStanza < Sequel::Model
+    many_to_one :user
+end
+
+class Group < Sequel::Model
+    many_to_one :roster_entries
+end
+

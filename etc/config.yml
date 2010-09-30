@@ -39,7 +39,7 @@ domains: malkier.net, optera.org
 # Use server.key for this directive.
 #
 listen:
-    c2s: 10.0.1.30:4018
+    c2s: *:5222
     s2s: *:5269
 
     certificate: etc/server.crt

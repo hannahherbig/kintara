@@ -143,7 +143,7 @@ class Kintara
 
             begin
                 Process.kill(0, curpid)
-            rescue Errno::ESRCH
+            rescue Errno::ESRCH, Errno::EPERM
                 File.delete('var/kintara.pid')
             else
                 puts "#{ME}: daemon is already running"
