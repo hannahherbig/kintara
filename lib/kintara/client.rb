@@ -105,7 +105,6 @@ class Client
         @eventq.handle(:stanza_ready) { |xml| process_stanza(xml) }
 
         @eventq.handle(:new_stream)   { |xml| initialize_new_stream(xml) }
-        @eventq.handle(:start_tls)    { really_start_tls }
     end
 
     def initialize_parser
@@ -174,10 +173,14 @@ class Client
     #
     def dead=(bool)
         if bool
+            # Try to flush the sendq first. This is for errors and such.
+            write unless @sendq.empty?
+
             debug("client for #@host is dead")
-            @dead   = true
+
             @socket.close
             @socket = nil
+            @dead   = true
             @state  = []
         end
     end
@@ -189,9 +192,6 @@ class Client
         err << na
 
         @sendq << err
-
-        # Force it to send now
-        write
 
         self.dead = true
     end
@@ -283,26 +283,26 @@ class Client
         # the TLS handshake. The event loop breaks it otherwise. Hack :/
         write
 
-        @eventq.post(:start_tls)
-    end
+        @eventq.post(:tls_callback)
 
-    def really_start_tls
-        begin
+        @eventq.handle(:tls_callback) do
             socket = OpenSSL::SSL::SSLSocket.new(@socket, Kintara.ssl_context)
-            socket.accept
-        rescue Exception => e
-            debug("TLS error: #{e}")
 
-            fai = XML.new_element('failure', 'urn:ietf:params:xml:ns:xmpp-tls')
-            @sendq << fai
+            begin
+                socket.accept
+            rescue Exception => e
+                debug("TLS error: #{e}")
 
-            self.dead = true
+                fai = XML.new_element('failure',
+                                      'urn:ietf:params:xml:ns:xmpp-tls')
+                @sendq << fai
 
-            return
+                self.dead = true
+            else
+                @socket = socket
+                @state << :tls
+            end
         end
-
-        @socket = socket
-        @state << :tls
     end
 
     ######
@@ -373,6 +373,12 @@ class Client
             end
         rescue Errno::EAGAIN
             retry
+        rescue Exception => e
+            debug("write error on #@host: #{e}")
+            debug("client from #@host disconnected")
+            @sendq = []
+            self.dead = true
+            return
         end
     end
 end

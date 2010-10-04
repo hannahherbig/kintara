@@ -133,8 +133,8 @@ class Kintara
         end
 
         # Set up the SSL stuff
-        certfile = Kintara.config[:listen][:certificate]
-        keyfile  = Kintara.config[:listen][:private_key]
+        certfile = @@config[:listen][:certificate]
+        keyfile  = @@config[:listen][:private_key]
 
         begin
             cert = OpenSSL::X509::Certificate.new(File.read(certfile))
@@ -143,11 +143,11 @@ class Kintara
             puts "#{ME}: configuration error: #{e}"
             abort
         else
-            ctx  = OpenSSL::SSL::SSLContext.new
-
-            ctx.verify_mode = OpenSSL::SSL::VERIFY_NONE
+            ctx      = OpenSSL::SSL::SSLContext.new
             ctx.cert = cert
             ctx.key  = pkey
+
+            ctx.verify_mode = OpenSSL::SSL::VERIFY_NONE
 
             @@ssl_context = ctx
         end
