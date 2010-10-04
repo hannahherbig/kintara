@@ -48,6 +48,9 @@ class Kintara
     # A list of our servers
     @@servers = []
 
+    # The OpenSSL context used for STARTTLS
+    @@ssl_context = nil
+
     # Application-wide time
     @@time = Time.now.to_f
 
@@ -127,6 +130,26 @@ class Kintara
             abort
         else
             keys_to_sym!(@@config)
+        end
+
+        # Set up the SSL stuff
+        certfile = Kintara.config[:listen][:certificate]
+        keyfile  = Kintara.config[:listen][:private_key]
+
+        begin
+            cert = OpenSSL::X509::Certificate.new(File.read(certfile))
+            pkey = OpenSSL::PKey::RSA.new(File.read(keyfile))
+        rescue Exception => e
+            puts "#{ME}: configuration error: #{e}"
+            abort
+        else
+            ctx  = OpenSSL::SSL::SSLContext.new
+
+            ctx.verify_mode = OpenSSL::SSL::VERIFY_NONE
+            ctx.cert = cert
+            ctx.key  = pkey
+
+            @@ssl_context = ctx
         end
 
         if debug
@@ -228,6 +251,10 @@ class Kintara
 
     def Kintara.config
         @@config
+    end
+
+    def Kintara.ssl_context
+        @@ssl_context
     end
 
     def Kintara.time

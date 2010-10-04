@@ -8,9 +8,10 @@
 
 # Import required Ruby modules
 %w(document parsers/sax2parser).each { |m| require 'rexml/' + m }
+%w(openssl).each { |m| require m }
 
 # Import required application modules
-%w(loggable).each { |m| require 'kintara/' + m }
+%w(loggable stanza).each { |m| require 'kintara/' + m }
 
 #
 # This is kind of a hack.
@@ -29,6 +30,9 @@ module XMPP
 class Client
     # Add the logging methods
     include Loggable
+
+    # Add stanza processing. This is separated for clarity.
+    include XMPP::StanzaProcessor
 
     ##
     # instance attributes
@@ -60,14 +64,18 @@ class Client
         # Received data waiting to be parsed
         @recvq = ''
 
+        # The name of our bound resource
+        @resource = nil
+
         # Data waiting to be sent
         @sendq = []
 
         # Our socket
         @socket = socket
 
-        # Our connection state (one of none, tls, sasl, connected)
-        @state = :none
+        # Our connection state
+        # Either empty, or an array that can include :tls and :sasl
+        @state = []
 
         # The current XML stanza we're parsing
         @xml = nil
@@ -95,6 +103,9 @@ class Client
     def set_default_handlers
         @eventq.handle(:recvq_ready)  { parse }
         @eventq.handle(:stanza_ready) { |xml| process_stanza(xml) }
+
+        @eventq.handle(:new_stream)   { |xml| initialize_new_stream(xml) }
+        @eventq.handle(:start_tls)    { really_start_tls }
     end
 
     def initialize_parser
@@ -103,11 +114,22 @@ class Client
             e.add_attributes(attributes)
 
             @xml = @xml.nil? ? e : @xml.add_element(e)
+
+            # <stream:stream> never ends, so we have to do this manually
+            if @xml.name == 'stream' and @state.length < 2
+                @eventq.post(:new_stream, @xml)
+                @xml = nil
+            end
         end
 
         @parser.listen(:end_element) do |uri, localname, qname|
-            @eventq.post(:stanza_ready, @xml) unless @xml.parent
-            @xml = @xml.parent
+            # </stream:stream> is a special case
+            if qname == 'stream:stream' and @xml.nil?
+                # Die
+            else
+                @eventq.post(:stanza_ready, @xml) unless @xml.parent
+                @xml = @xml.parent
+            end
         end
 
         @parser.listen(:characters) do |text|
@@ -129,7 +151,7 @@ class Client
         rescue REXML::ParseException => e
             if e.message =~ /must not be bound/i # REXML bug - reported
                 str = 'xmlns:xml="http://www.w3.org/XML/1998/namespace"'
-                data.gsub!(str, '')
+                @recvq.gsub!(str, '')
                 retry
             else
                 # REXML throws this when it gets a partial stanza that's not
@@ -144,10 +166,6 @@ class Client
         end
     end
 
-    def process_stanza(stanza)
-        debug("processing: #{stanza}")
-    end
-
     #
     # Takes care of setting some stuff when we die.
     # ---
@@ -158,9 +176,133 @@ class Client
         if bool
             debug("client for #@host is dead")
             @dead   = true
+            @socket.close
             @socket = nil
-            @state  = :none
+            @state  = []
         end
+    end
+
+    def error(defined_condition)
+        err = XML.new_element('stream:error')
+        na  = XML.new_element(defined_condition,
+                              'urn:ietf:params:xml:ns:xmpp-streams')
+        err << na
+
+        @sendq << err
+
+        # Force it to send now
+        write
+
+        self.dead = true
+    end
+
+    def initialize_new_stream(xml)
+        # Verify the namespaces
+        unless xml.attributes['stream'] == 'http://etherx.jabber.org/streams'
+            error('invalid-namespace')
+            return
+        end
+
+        unless xml.attributes['xmlns'] == 'jabber:client'
+            error('invalid-namespace')
+            return
+        end
+
+        # Check the version
+        unless xml.attributes['version'] == '1.0'
+            error('unsupported-version')
+            return
+        end
+
+        send_stream(xml)
+        send_features
+    end
+
+    def send_stream(xml)
+        xmlfrom = xml.attributes['from']
+        xmlto   = xml.attributes['to']
+        xmlto ||= Kintara.config[:domains].first
+        stanza  = []
+
+        stanza << "<?xml version='1.0'?>"
+        stanza << "<stream:stream "
+        stanza << "xmlns='jabber:client' "
+        stanza << "xmlns:stream='http://etherx.jabber.org/streams' "
+        stanza << "xml:lang='en' "
+        stanza << "to='#{xmlfrom}' " if xmlfrom
+        stanza << "from='#{xmlto}' "
+        stanza << "id='#{XML.new_id}' "
+        stanza << "version='1.0'>"
+
+        @sendq << stanza.join('')
+
+        if @state.include?(:sasl) and @state.include?(:tls)
+            debug("TLS/SASL stream established")
+        elsif @state == [:sasl]
+            debug("SASL stream established")
+        elsif @state == [:tls]
+            debug("TLS stream established")
+        elsif @state.empty?
+            debug("stream established")
+	    return
+        end
+    end
+
+    def send_features
+        feat = XML.new_element('stream:features')
+
+        tls  = XML.new_element('starttls', 'urn:ietf:params:xml:ns:xmpp-tls')
+        tls.add_element('optional')
+
+        sasl = XML.new_element('mechanisms', 'urn:ietf:params:xml:ns:xmpp-sasl')
+        mech = XML.new_element('mechanism')
+        mech.text = 'PLAIN'
+        sasl << mech
+        sasl << XML.new_element('required')
+
+        feat << tls  unless @state.include?(:tls)
+        feat << sasl unless @state.include?(:sasl)
+
+        @sendq << feat
+    end
+
+    def start_tls(xml)
+        # Verify the namespace
+        unless xml.namespace == 'urn:ietf:params:xml:ns:xmpp-tls'
+            fai = XML.new_element('failure', 'urn:ietf:params:xml:ns:xmpp-tls')
+            @sendq << fai
+
+            self.dead = true
+
+            return
+        end
+
+        @sendq << XML.new_element('proceed', 'urn:ietf:params:xml:ns:xmpp-tls')
+
+        # Force a write of the sendq so that the client expects
+        # the TLS handshake. The event loop breaks it otherwise. Hack :/
+        write
+
+        @eventq.post(:start_tls)
+    end
+
+    def really_start_tls
+        begin
+            socket = OpenSSL::SSL::SSLSocket.new(@socket, Kintara.ssl_context)
+            socket.accept
+        rescue Exception => e
+            debug("TLS error: #{e}")
+
+            fai = XML.new_element('failure', 'urn:ietf:params:xml:ns:xmpp-tls')
+            @sendq << fai
+
+            self.dead = true
+
+            return
+        end
+
+        @socket = socket
+        @state << :tls
     end
 
     ######
@@ -197,15 +339,17 @@ class Client
             ret = nil
         end
 
-        unless ret
+        if not ret or ret.empty?
             debug("error from #@host: #{e}") if e
             debug("client from #@host disconnected")
-            @socket.close
             self.dead = true
             return
         end
 
-        debug("#{ret}")
+        string = ''
+        string += "(#@resource) " if @resource
+        string += ret.gsub("\n", '')
+        debug(string)
 
         @recvq += ret
 
@@ -223,8 +367,9 @@ class Client
         begin
             # Use shift because we need it to fall off immediately
             while stanza = @sendq.shift
-                debug(stanza)
-                @socket.write(stanza)
+                debug(stanza.to_s)
+
+                @socket.write(stanza.to_s)
             end
         rescue Errno::EAGAIN
             retry

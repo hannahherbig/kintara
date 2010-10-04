@@ -151,13 +151,13 @@ class Server
             # events, so we keep running until it's empty.
             @eventq.run while @eventq.needs_ran?
 
-            # Are any of our clients dead?
-            @clients.delete_if { |client| client.dead? }
-
             # Run our client's event loops. Same deal as before.
             @clients.each do |client|
                 client.run_events while client.has_events?
             end
+
+            # Are any of our clients dead?
+            @clients.delete_if { |client| client.dead? }
 
             readfds  = [@socket]
             writefds = []
