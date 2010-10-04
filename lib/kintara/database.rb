@@ -12,13 +12,66 @@
 # Import required application modules
 #%w().each { |m| require m }
 
-# Check for Sequel
-begin
-    require 'sequel'
-rescue LoadError
-    puts 'kintara: unable to load Sequel'
-    puts 'kintara: this library is required for database storage'
-    puts 'kintara: gem install --remote sequel'
-    abort
-end
+module DB
 
+    class User < Sequel::Model
+        one_to_many :roster_entries
+        one_to_many :offline_stanzas
+
+        def User.xid_find(xid)
+            node, domain, resource = XML.split_xid(xid)
+            User.find(:node => node, :domain => domain)
+        end
+
+        def xid
+            "#{node}@#{domain}"
+        end
+    end
+
+    class RosterEntry < Sequel::Model
+        one_to_many :groups
+        many_to_one :user
+    end
+
+    class OfflineStanza < Sequel::Model
+        many_to_one :user
+    end
+
+    class Group < Sequel::Model
+        many_to_one :roster_entries
+    end
+
+    def DB.initialize
+        Kintara.db.create_table :users do
+            primary_key :id
+            String      :node
+            String      :password
+            String      :domain
+            String      :vcard
+        end
+
+        Kintara.db.create_table :roster_entries do
+            primary_key :id
+            foreign_key :user_id, :users
+            String      :remote_xid
+            String      :alias
+            String      :subscription
+            FalseClass  :ask
+        end
+
+        Kintara.db.create_table :offline_stanzas do
+            primary_key :id
+            foreign_key :user_id, :users
+            String      :stanza
+            Time        :timestamp
+        end
+
+        Kintara.db.create_table :groups do
+            primary_key :id
+            foreign_key :roster_entry_id, :roster_entries
+
+            String :name
+        end
+    end
+
+end # module DB

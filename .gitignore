@@ -1,1 +1,4 @@
 var
+etc/kintara.db
+etc/server.crt
+etc/server.key

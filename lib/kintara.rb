@@ -10,12 +10,22 @@
 %w(logger optparse yaml).each { |m| require m }
 
 # Import required application modules
-%w(database timer server).each { |m| require 'kintara/' + m }
+%w(timer server).each { |m| require 'kintara/' + m }
 
 # XXX - Since IDN doesn't work in 1.9 yet, we're going to just make sure the
 # qualifying strings are set to be encoded as UTF-8.
 Encoding.default_internal = 'UTF-8'
 Encoding.default_external = 'UTF-8'
+
+# Check for Sequel
+begin
+    require 'sequel'
+rescue LoadError
+    puts 'kintara: unable to load Sequel'
+    puts 'kintara: this library is required for database storage'
+    puts 'kintara: gem install --remote sequel'
+    abort
+end
 
 # XXX - for quick reference
 #
@@ -41,6 +51,9 @@ class Kintara
 
     # Configuration data
     @@config = nil
+
+    # Database connection
+    @@db = nil
 
     # Application-wide Logger
     @@logger = nil
@@ -157,7 +170,23 @@ class Kintara
             puts "#{ME}: warning: all streams will be logged in the clear!"
         end
 
-        # XXX - load db
+        # Load database
+        no_db = true if not File.exists?('etc/kintara.db')
+
+        begin
+            @@db = Sequel.sqlite('etc/kintara.db')
+        rescue Exception => e
+            puts "#{ME}: database error: #{e}"
+            abort
+        else
+            # Sequel makes us open the db before we load our models...
+            require 'kintara/database'
+        end
+
+        if no_db
+            puts "#{ME}: creating new database..."
+            DB.initialize
+        end
 
         # Check to see if we're already running
         if File.exists?('var/kintara.pid')
@@ -209,6 +238,15 @@ class Kintara
             @@logger = Logger.new($stdout) if logging or debug
         end
 
+        # Log our SQL statements if debugging
+        @@db.loggers << @@logger if debug
+
+        #u = DB::User.new
+        #u.node = 'rakaur'
+        #u.domain = 'malkier.net'
+        #u.password = Digest::MD5.hexdigest('partypants')
+        #u.save
+
         # Write the PID file
         Dir.mkdir('var') unless Dir.exists?('var')
         File.open('var/kintara.pid', 'w') { |f| f.puts(Process.pid) }
@@ -251,6 +289,10 @@ class Kintara
 
     def Kintara.config
         @@config
+    end
+
+    def Kintara.db
+        @@db
     end
 
     def Kintara.ssl_context

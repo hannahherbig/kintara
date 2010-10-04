@@ -30,14 +30,13 @@ module StanzaProcessor
         s_type = stanza.name
         s_to   = stanza.attributes['to']
 
-        if s_to and not s_to.empty?
-            s_node, s_domain, s_resource = XML.split_xid(s_to)
-        end
-
         # Features valid only when not fully connected
         case s_type
         when 'starttls'
             start_tls(stanza)
+            return
+        when 'auth'
+            authorize(stanza)
             return
         end unless @state.include?(:tls) and @state.include?(:sasl)
 
@@ -48,34 +47,43 @@ module StanzaProcessor
         #     Server MUST handle directly.
         if not s_to or s_to.empty?
             case s_type
-            when 'message' # Section 11.1.2
+            when 'message'
                 # Add 'to' attribute as bare JID of sender
 
-            when 'presence' # Section 11.1.3
+            when 'presence'
                 # Deliver to sending entity's subscribers
 
-            when 'iq' # Section 11.1.4
-                # Handle on behalf of sender
+            when 'iq'
+                # Treated the same as "to: mere domain"
+                @eventq.post(:iq_stanza_ready, stanza)
 
             else
-                error('unsupported-stanza-type')
-                return
+                stream_error('unsupported-stanza-type')
             end
 
         # Section 11.2 - 'to' domain is local
         elsif Kintara.config[:domains].include?(s_domain)
+            node, domain, resource = XML.split_xid(s_to)
+
             # Section 11.2.1 - mere domain
-            if not s_node and not s_resource
-                # Sent directly to our server
-                # Opening streams don't get here, so it's almost always an iq.
+            if not node and not resource
+                if s_type == 'iq'
+                    @eventq.post(:iq_stanza_ready, stanza)
+                else
+                    @sendq << stanza_error(stanza, 'bad-request', :modify)
+                end
 
             # Section 11.2.2 - domain with resource
-            elsif s_resource and not s_node
-                # Handle as appropriate depending on type
+            elsif resource and not node
+                # I don't know what this could apply to currently
+                @sendq << stanza_error(stanza, 'bad-request', :modify)
 
             # Section 11.2.3 - node at domain
-            elsif s_node and not s_resource
+            elsif node and not resource
                 # Section 11.2.3.1 - no such user
+                if not DB::User.find_xid(s_to) and s_type =~ /(message|iq)/
+                    @sendq << stanza_error('service-unavailable', :cancel)
+                end
 
                 # Section 11.2.3.2 - depends on stanza type
                 case s_type

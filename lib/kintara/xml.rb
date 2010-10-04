@@ -7,7 +7,7 @@
 # encoding: utf-8
 
 # Import required Ruby modules
-%w(rexml/document).each { |m| require m }
+%w(rexml/document securerandom).each { |m| require m }
 
 # Import required application modules
 #%w().each { |m| require m }
@@ -23,16 +23,16 @@ module XML
     end
 
     XID_RE = /
-             ^              # beginning of string
-             (?:            # non-capturing group
-                 ([^@\/]+)@ # anything-but-slash|@ followed by @
-             )?             # close non-capturing, ? makes it optional
-             ([^\/@]+)      # always grab anything-but-slash|@
-             \/?            # optional slash
-             (?:            # non-capturing group
-                 ([^\/@]+)  # optional anything-but-slash|@
-             )              # close non-capturing group
-             $              # end of string
+             ^                # beginning of string
+             (?:              # non-capturing group
+                 ([^\s@\/]+)@ # anything-but-slash|@ followed by @
+             )?               # close non-capturing, ? makes it optional
+             ([^\s\/@]+)      # always grab anything-but-slash|@
+             \/?              # optional slash
+             (?:              # non-capturing group
+                 ([^\s\/@]+)  # optional anything-but-slash|@
+             )                # close non-capturing group
+             $                # end of string
              /x
 
     def split_xid(xid)
@@ -43,35 +43,19 @@ module XML
         XID_RE.match(xid)
     end
 
-    # Generate a unique stream id.
-    # I think I yanked this from a Google SoC project.
+    #
+    # Generate a unique id.
     #
     # return:: [String] random string
     #
-    @@id_counter = 0
-    @@id_changed = 0
+    def uuid
+        first  = SecureRandom.hex(4)
+        second = SecureRandom.hex(2)
+        third  = SecureRandom.hex(2)
+        fourth = SecureRandom.hex(2)
+        fifth  = SecureRandom.hex(6)
 
-    def new_id
-        @@id_changed = Time.now.to_i
-
-        time          = Time.now.to_i
-        tid           = String.new { }.object_id
-        @@id_counter += 1
-
-        nid = (time << 48) | (tid << 16) | @@id_counter
-        id  = ''
-
-        while nid > 0
-            id   += (nid & 0xFF).chr
-            nid >>= 8
-        end
-
-        unless @@id_changed == time
-            @@id_changed = time
-            @@id_counter = 0
-        end
-
-        [id].pack('m').strip
+        "#{first}-#{second}-#{third}-#{fourth}-#{fifth}"
     end
 
 end # module XML

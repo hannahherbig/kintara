@@ -8,7 +8,7 @@
 
 # Import required Ruby modules
 %w(document parsers/sax2parser).each { |m| require 'rexml/' + m }
-%w(openssl).each { |m| require m }
+%w(digest/md5 openssl).each { |m| require m }
 
 # Import required application modules
 %w(loggable stanza).each { |m| require 'kintara/' + m }
@@ -46,6 +46,9 @@ class Client
     ##
     # XXX
     def initialize(host, socket)
+        # The hostname our client connected to
+        @connect_host = nil
+
         # Is our socket dead?
         @dead = false
 
@@ -77,6 +80,9 @@ class Client
         # Either empty, or an array that can include :tls and :sasl
         @state = []
 
+        # Our DB user object
+        @user = nil
+
         # The current XML stanza we're parsing
         @xml = nil
 
@@ -105,6 +111,8 @@ class Client
         @eventq.handle(:stanza_ready) { |xml| process_stanza(xml) }
 
         @eventq.handle(:new_stream)   { |xml| initialize_new_stream(xml) }
+
+        @eventq.handle(:iq_stanza_ready) { debug("iq stanza ready!") }
     end
 
     def initialize_parser
@@ -115,7 +123,7 @@ class Client
             @xml = @xml.nil? ? e : @xml.add_element(e)
 
             # <stream:stream> never ends, so we have to do this manually
-            if @xml.name == 'stream' and @state.length < 2
+            if @xml.name == 'stream' and @state.length <= 2
                 @eventq.post(:new_stream, @xml)
                 @xml = nil
             end
@@ -124,7 +132,8 @@ class Client
         @parser.listen(:end_element) do |uri, localname, qname|
             # </stream:stream> is a special case
             if qname == 'stream:stream' and @xml.nil?
-                # Die
+                @sendq << "</stream:stream>"
+                self.dead = true
             else
                 @eventq.post(:stanza_ready, @xml) unless @xml.parent
                 @xml = @xml.parent
@@ -158,7 +167,7 @@ class Client
                 # partial stanzas and also to detect invalid XML, but it's
                 # pretty much impossible to do both, which is widely
                 # recognized in the XMPP community. So, instead, we die.
-                # XXX - error
+                stream_error('xml-not-well-formed')
             end
         ensure
             @recvq = ''
@@ -185,7 +194,7 @@ class Client
         end
     end
 
-    def error(defined_condition)
+    def stream_error(defined_condition)
         err = XML.new_element('stream:error')
         na  = XML.new_element(defined_condition,
                               'urn:ietf:params:xml:ns:xmpp-streams')
@@ -196,21 +205,40 @@ class Client
         self.dead = true
     end
 
+    #ERR_TYPES = %w(auth cancel continue modify wait)
+
+    def stanza_error(stanza, defined_condition, type)
+        stzerr = XML.new_element(stanza.name)
+        stzerr.add_attribute('type', 'error')
+        stzerr.add_attribute('id', stanza.attributes['id'])
+
+        err = XML.new_element('error')
+        err.add_attribute('type', type.to_s)
+
+        cond = XML.new_element(defined_condition,
+                               'urn:ietf:params:xml:ns:xmpp-stanzas')
+
+        err << cond
+        stzerr << err
+
+        stzerr
+    end
+
     def initialize_new_stream(xml)
         # Verify the namespaces
         unless xml.attributes['stream'] == 'http://etherx.jabber.org/streams'
-            error('invalid-namespace')
+            stream_error('invalid-namespace')
             return
         end
 
         unless xml.attributes['xmlns'] == 'jabber:client'
-            error('invalid-namespace')
+            stream_error('invalid-namespace')
             return
         end
 
         # Check the version
         unless xml.attributes['version'] == '1.0'
-            error('unsupported-version')
+            stream_error('unsupported-version')
             return
         end
 
@@ -224,6 +252,8 @@ class Client
         xmlto ||= Kintara.config[:domains].first
         stanza  = []
 
+        @connect_host = xmlto
+
         stanza << "<?xml version='1.0'?>"
         stanza << "<stream:stream "
         stanza << "xmlns='jabber:client' "
@@ -231,7 +261,7 @@ class Client
         stanza << "xml:lang='en' "
         stanza << "to='#{xmlfrom}' " if xmlfrom
         stanza << "from='#{xmlto}' "
-        stanza << "id='#{XML.new_id}' "
+        stanza << "id='#{XML.uuid}' "
         stanza << "version='1.0'>"
 
         @sendq << stanza.join('')
@@ -260,8 +290,12 @@ class Client
         sasl << mech
         sasl << XML.new_element('required')
 
+        bind = XML.new_element('bind', 'urn:ietf:params:xml:ns:xmpp-bind')
+        bind << XML.new_element('required')
+
         feat << tls  unless @state.include?(:tls)
         feat << sasl unless @state.include?(:sasl)
+        feat << bind
 
         @sendq << feat
     end
@@ -302,6 +336,45 @@ class Client
                 @socket = socket
                 @state << :tls
             end
+        end
+    end
+
+    # For now, we're only doing SASL PLAIN
+    def authorize(xml)
+        unless xml.attributes['mechanism'] == 'PLAIN'
+            fai = XML.new_element('failure', 'urn:ietf:params:xml:ns:xmpp-sasl')
+            fai << XML.new_element('invalid-mechanism')
+
+            @sendq << fai
+
+            self.dead = true
+
+            return
+        end
+
+        data = xml.text.unpack('m')[0]
+        authzid, authcid, passwd = data.split("\000")
+        authzid = authcid if authzid.empty?
+        passwd  = Digest::MD5.hexdigest(passwd)
+
+        node, domain = authzid.split('@')
+        domain      ||= @connect_host
+
+        user = DB::User.find(:node => node, :domain => domain)
+
+        if not user or user.password != passwd
+            fai = XML.new_element('failure', 'urn:ietf:params:xml:ns:xmpp-sasl')
+            fai << XML.new_element('not-authorized')
+
+            @sendq << fai
+
+            self.dead = true
+        else
+            suc = XML.new_element('success', 'urn:ietf:params:xml:ns:xmpp-sasl')
+            @sendq << suc
+
+            @user = user
+            @state << :sasl
         end
     end
 
