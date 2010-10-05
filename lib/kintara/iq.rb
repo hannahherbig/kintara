@@ -24,9 +24,9 @@ module IQProcessor
         iq_type = stanza.attributes['type']
 
         if iq_type == 'set'
-            stanza.elements.each { |e| set_iq(stanza) }
+            set_iq(stanza)
         elsif iq_type == 'get'
-            stanza.elements.each { |e| get_iq(stanza) }
+            get_iq(stanza)
         else
             stanza_error(stanza, 'bad-request', :modify)
         end
