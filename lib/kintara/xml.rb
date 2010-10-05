@@ -22,6 +22,17 @@ module XML
         elem
     end
 
+    def new_iq(type, id = nil)
+        iq = new_element('iq')
+        iq.add_attribute('type', type.to_s)
+
+        id ||= uuid
+
+        iq.add_attribute('id', id)
+
+        iq
+    end
+
     XID_RE = /
              ^                # beginning of string
              (?:              # non-capturing group

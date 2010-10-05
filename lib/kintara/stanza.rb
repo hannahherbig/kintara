@@ -14,6 +14,8 @@
 
 module XMPP
 
+# Used *only* as a mixin to XMPP::Client
+# Separated for brievity
 module StanzaProcessor
 
     extend self
@@ -70,19 +72,19 @@ module StanzaProcessor
                 if s_type == 'iq'
                     @eventq.post(:iq_stanza_ready, stanza)
                 else
-                    @sendq << stanza_error(stanza, 'bad-request', :modify)
+                    stanza_error(stanza, 'bad-request', :modify)
                 end
 
             # Section 11.2.2 - domain with resource
             elsif resource and not node
                 # I don't know what this could apply to currently
-                @sendq << stanza_error(stanza, 'bad-request', :modify)
+                stanza_error(stanza, 'bad-request', :modify)
 
             # Section 11.2.3 - node at domain
             elsif node and not resource
                 # Section 11.2.3.1 - no such user
                 if not DB::User.find_xid(s_to) and s_type =~ /(message|iq)/
-                    @sendq << stanza_error('service-unavailable', :cancel)
+                    stanza_error('service-unavailable', :cancel)
                 end
 
                 # Section 11.2.3.2 - depends on stanza type

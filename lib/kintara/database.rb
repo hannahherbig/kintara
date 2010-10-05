@@ -26,6 +26,22 @@ module DB
         def xid
             "#{node}@#{domain}"
         end
+
+        ##
+        # This is stuff that doesn't have to do with the database
+        #
+
+        # A list of XMPP::Clients connected as us
+        def clients
+            @clients ||= []
+            @clients
+        end
+
+        # A list of XMPP::Resources bound under our @clients
+        def resources
+            @resources ||= []
+            @resources
+        end
     end
 
     class RosterEntry < Sequel::Model
@@ -41,6 +57,7 @@ module DB
         many_to_one :roster_entries
     end
 
+    # Sets up a new skeleton DB
     def DB.initialize
         Kintara.db.create_table :users do
             primary_key :id
