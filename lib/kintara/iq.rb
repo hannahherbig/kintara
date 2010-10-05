@@ -37,6 +37,8 @@ module IQProcessor
             case elem.name
             when 'bind'
                 bind_resource(stanza)
+            when 'unbind'
+                stanza_error(stanza, 'feature-not-implemented', :modify)
             when 'session'
                 fake_session(stanza)
             else
