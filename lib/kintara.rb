@@ -55,6 +55,9 @@ class Kintara
     # Database connection
     @@db = nil
 
+    # Debug mode?
+    @@debug = false
+
     # Application-wide Logger
     @@logger = nil
 
@@ -94,7 +97,6 @@ class Kintara
 
         # Some defaults for state
         logging  = true
-        debug    = false
         willfork = RUBY_PLATFORM =~ /win32/i ? false : true
         wd       = Dir.getwd
 
@@ -107,7 +109,7 @@ class Kintara
         qd = 'Disable regular logging.'
         vd = 'Display version information.'
 
-        opts.on('-d', '--debug',   dd) { debug    = true  }
+        opts.on('-d', '--debug',   dd) { @@debug  = true  }
         opts.on('-h', '--help',    hd) { puts opts; abort }
         opts.on('-n', '--no-fork', nd) { willfork = false }
         opts.on('-q', '--quiet',   qd) { logging  = false }
@@ -121,7 +123,7 @@ class Kintara
         end
 
         # Interpreter warnings
-        $-w = true if debug
+        $-w = true if @@debug
 
         # Signal handlers
         trap(:INT)   { app_exit }
@@ -165,7 +167,7 @@ class Kintara
             @@ssl_context = ctx
         end
 
-        if debug
+        if @@debug
             puts "#{ME}: warning: debug mode enabled"
             puts "#{ME}: warning: all streams will be logged in the clear!"
         end
@@ -227,7 +229,7 @@ class Kintara
             $stderr.close
 
             # Set up logging
-            if logging or debug
+            if logging or @@debug
                 @@logger = Logger.new('var/kintara.log', 'weekly')
             end
         else
@@ -235,11 +237,11 @@ class Kintara
             puts "#{ME}: running in foreground mode from #{Dir.getwd}"
 
             # Set up logging
-            @@logger = Logger.new($stdout) if logging or debug
+            @@logger = Logger.new($stdout) if logging or @@debug
         end
 
         # Log our SQL statements if debugging
-        @@db.loggers << @@logger if debug
+        @@db.loggers << @@logger if @@debug
 
         #u = DB::User.new
         #u.node = 'rakaur'
@@ -265,16 +267,13 @@ class Kintara
                 s.type    = type
 
                 s.logger  = @@logger if logging
-                s.debug   = debug
             end
         end
 
-        Thread.abort_on_exception = true if debug
+        Thread.abort_on_exception = true if @@debug
 
         @@servers.each { |s| s.thread = Thread.new { s.io_loop } }
         @@servers.each { |s| s.thread.join }
-
-        @@logger.debug(caller[0].split('/')[-1]) { @@servers }
 
         # Exiting...
         app_exit
@@ -293,6 +292,10 @@ class Kintara
 
     def Kintara.db
         @@db
+    end
+
+    def Kintara.debug
+        @@debug
     end
 
     def Kintara.ssl_context

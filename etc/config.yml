@@ -14,6 +14,11 @@
 #   3) It's very Ruby-ish instead of C-ish, and that's what I'm going for.
 #
 
+# How much logging should we do?
+# In order of least verbose to most verbose:
+# none, fatal, error, warning, info, debug
+logging: info
+
 # Define domains this daemon will service. Sort of like virtual hosts.
 domains: malkier.net, optera.org
 

@@ -54,7 +54,6 @@ class Client
     ##
     # instance attributes
     attr_reader :host, :resource, :socket
-    attr_writer :debug
 
     # A simple Exception class
     class Error < Exception
@@ -114,7 +113,7 @@ class Client
         # Initialize the parser
         initialize_parser
 
-        debug("new client from #@host")
+        log(:debug, "new client from #@host")
 
         self
     end
@@ -149,6 +148,7 @@ class Client
             # </stream:stream> is a special case
             if qname == 'stream:stream' and @xml.nil?
                 @sendq << "</stream:stream>"
+                log(:info, "client from #@host disconnected")
                 self.dead = true
             else
                 @eventq.post(:stanza_ready, @xml) unless @xml.parent
@@ -201,7 +201,7 @@ class Client
             # Try to flush the sendq first. This is for errors and such.
             write unless @sendq.empty?
 
-            debug("client for #@host is dead")
+            log(:debug, "client for #@host is dead")
 
             @socket.close
             @socket = nil
@@ -245,8 +245,8 @@ class Client
         end
 
         if not ret or ret.empty?
-            debug("error from #@host: #{e}") if e
-            debug("client from #@host disconnected")
+            log(:info, "error from #@host: #{e}") if e
+            log(:info, "client from #@host disconnected")
             self.dead = true
             return
         end
@@ -254,7 +254,7 @@ class Client
         string = ''
         string += "(#{@resource.name}) " if @resource
         string += ret.gsub("\n", '')
-        debug(string)
+        log(:debug, string)
 
         @recvq += ret
 
@@ -273,9 +273,9 @@ class Client
             # Use shift because we need it to fall off immediately
             while stanza = @sendq.shift
                 if @resource
-                    debug("(#{@resource.name}) #{stanza.to_s}")
+                    log(:debug, "(#{@resource.name}) #{stanza.to_s}")
                 else
-                    debug(stanza.to_s)
+                    log(:debug, stanza.to_s)
                 end
 
                 @socket.write(stanza.to_s)
@@ -283,8 +283,8 @@ class Client
         rescue Errno::EAGAIN
             retry
         rescue Exception => e
-            debug("write error on #@host: #{e}")
-            debug("client from #@host disconnected")
+            log(:info, "write error on #@host: #{e}")
+            log(:info, "client from #@host disconnected")
             @sendq = []
             self.dead = true
             return

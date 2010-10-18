@@ -27,8 +27,6 @@ module StanzaProcessor
     # All of this logic comes from RFC Section 11
     # This is long and nasty, but efficient and appropriate
     def process_stanza(stanza)
-        #debug("processing: #{stanza}") 
-
         s_type = stanza.name
         s_to   = stanza.attributes['to']
 

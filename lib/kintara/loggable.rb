@@ -13,20 +13,10 @@ module Loggable
     # message:: the string to log
     # returns:: +self+
     #
-    def log(message)
-        @logger.info(caller[0].split('/')[-1]) { message } if @logger
-    end
+    def log(level, message)
+        return unless level.to_s =~ /(fatal|error|warning|info|debug)/
 
-    ##
-    # Logs a debug message.
-    # ---
-    # message:: the string to log
-    # returns:: +self+
-    #
-    def debug(message)
-        return unless @logger
-
-        @logger.debug(caller[0].split('/')[-1]) { message } if @debug
+        @logger.send(level, caller[0].split('/')[-1]) { message } if @logger
     end
 
     ##
@@ -44,9 +34,24 @@ module Loggable
 
         @logger.datetime_format = '%m/%d %H:%M:%S '
 
-        # We only have 'logging' and 'debugging', so just set the
-        # object to show all levels. I might change this someday.
-        @logger.level = Logger::DEBUG
+        case Kintara.config[:logging]
+        when 'none'
+            @logger = nil
+        when 'fatal'
+            @logger.level = Logger::FATAL
+        when 'error'
+            @logger.level = Logger::ERROR
+        when 'warning'
+            @logger.level = Logger::WARN
+        when 'info'
+            @logger.level = Logger::INFO
+        when 'debug'
+            @logger.level = Logger::DEBUG
+        else
+            @logger.level = Logger::WARN
+        end
+
+        @logger.level = Logger::DEBUG if Kintara.debug
     end
 end # module Loggable
 

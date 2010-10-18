@@ -91,7 +91,7 @@ module IQProcessor
 
         @state << :bind
 
-        debug("bound resource to #{@resource.name}")
+        log(:debug, "bound resource to #{@resource.name}")
 
         # Yay they now have a resource
         result = XML.new_iq(:result, stanza.attributes['id'])

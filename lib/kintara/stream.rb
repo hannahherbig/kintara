@@ -91,13 +91,13 @@ module Stream
         @sendq << stanza.join('')
 
         if @state.include?(:sasl) and @state.include?(:tls)
-            debug("TLS/SASL stream established")
+            log(:debug, "TLS/SASL stream established")
         elsif @state == [:sasl]
-            debug("SASL stream established")
+            log(:debug, "SASL stream established")
         elsif @state == [:tls]
-            debug("TLS stream established")
+            log(:debug, "TLS stream established")
         elsif @state.empty?
-            debug("stream established")
+            log(:debug, "stream established")
             return
         end
     end
@@ -149,7 +149,7 @@ module Stream
             begin
                 socket.accept
             rescue Exception => e
-                debug("TLS error: #{e}")
+                log(:error, "TLS error: #{e}")
 
                 fai = XML.new_element('failure',
                                       'urn:ietf:params:xml:ns:xmpp-tls')

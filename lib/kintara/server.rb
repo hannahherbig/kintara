@@ -23,7 +23,7 @@ class Server
     # instance attributes
     attr_accessor :thread
     attr_reader   :socket
-    attr_writer   :bind_to, :debug, :port, :type
+    attr_writer   :bind_to, :port, :type
 
     # A simple Exception class for some errors
     class Error < Exception
@@ -52,7 +52,7 @@ class Server
 
         @logger.progname = "#@bind_to:#@port"
 
-        debug("new #@type server at #@bind_to:#@port")
+        log(:debug, "new #@type server at #@bind_to:#@port")
 
         # Start up the listener
         start_listening
@@ -75,10 +75,10 @@ class Server
                 @socket = TCPServer.new(@bind_to, @port)
             end
         rescue Exception => e
-            log("#{Kintara::ME}: error acquiring socket for #@bind_to:#@port")
+            log(:fatal, "error acquiring socket for #@bind_to:#@port")
             raise
         else
-            debug("#@type server successfully listening at #@bind_to:#@port")
+            log(:info, "#@type server listening at #@bind_to:#@port")
             @dead = false
         end
     end
@@ -102,11 +102,10 @@ class Server
         # This is to get around some silly IPv6 stuff
         host = newsock.peeraddr[3].sub('::ffff:', '')
 
-        debug("established new connection for #{host}")
+        log(:info, "#@bind_to:#@port: new connection from #{host}")
 
         @clients << XMPP::Client.new(host, newsock) do |c|
             c.logger = @logger
-            c.debug  = @debug
         end
     end
 
@@ -141,7 +140,7 @@ class Server
 
             # Is our server's listening socket dead?
             if dead?
-                debug("listener has died on #@host:#@port, restarting")
+                log(:warning, "listener has died on #@host:#@port, restarting")
                 @socket.close
                 @socket = nil
                 @eventq.post(:dead)
