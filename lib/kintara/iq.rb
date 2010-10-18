@@ -61,7 +61,7 @@ module IQProcessor
         elem = stanza.elements.find { |e| e.name == 'bind' }
 
         # Verify the namespace
-        unless elem.namespace == 'urn:ietf:params:xml:ns:xmpp-bind'
+        unless elem.namespace == XML::NS::BIND
             stanza_error(stanza, 'service-unavailable', :cancel)
             return
         end
@@ -95,7 +95,7 @@ module IQProcessor
 
         # Yay they now have a resource
         result = XML.new_iq(:result, stanza.attributes['id'])
-        bind   = XML.new_element('bind', 'urn:ietf:params:xml:ns:xmpp-bind')
+        bind   = XML.new_element('bind', XML::NS::BIND)
 
         jid = XML.new_element('jid')
         jid.text = "#{@user.xid}/#{@resource.name}"

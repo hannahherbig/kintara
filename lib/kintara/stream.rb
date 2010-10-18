@@ -22,8 +22,7 @@ module Stream
 
     def stream_error(defined_condition)
         err = XML.new_element('stream:error')
-        na  = XML.new_element(defined_condition,
-                              'urn:ietf:params:xml:ns:xmpp-streams')
+        na  = XML.new_element(defined_condition, XML::NS::STREAM)
         err << na
 
         @sendq << err
@@ -39,8 +38,7 @@ module Stream
         err = XML.new_element('error')
         err.add_attribute('type', type.to_s)
 
-        cond = XML.new_element(defined_condition,
-                               'urn:ietf:params:xml:ns:xmpp-stanzas')
+        cond = XML.new_element(defined_condition, XML::NS::STANZA)
 
         err << cond
         stzerr << err
@@ -105,16 +103,16 @@ module Stream
     def send_features
         feat = XML.new_element('stream:features')
 
-        tls  = XML.new_element('starttls', 'urn:ietf:params:xml:ns:xmpp-tls')
+        tls  = XML.new_element('starttls', XML::NS::TLS)
         tls.add_element('optional')
 
-        sasl = XML.new_element('mechanisms', 'urn:ietf:params:xml:ns:xmpp-sasl')
+        sasl = XML.new_element('mechanisms', XML::NS::SASL)
         mech = XML.new_element('mechanism')
         mech.text = 'PLAIN'
         sasl << mech
         sasl << XML.new_element('required')
 
-        bind = XML.new_element('bind', 'urn:ietf:params:xml:ns:xmpp-bind')
+        bind = XML.new_element('bind', XML::NS::BIND)
         bind << XML.new_element('required')
 
         feat << tls  unless @state.include?(:tls)
@@ -126,8 +124,8 @@ module Stream
 
     def start_tls(xml)
         # Verify the namespace
-        unless xml.namespace == 'urn:ietf:params:xml:ns:xmpp-tls'
-            fai = XML.new_element('failure', 'urn:ietf:params:xml:ns:xmpp-tls')
+        unless xml.namespace == XML::NS::TLS
+            fai = XML.new_element('failure', XML::NS::TLS)
             @sendq << fai
 
             self.dead = true
@@ -135,7 +133,7 @@ module Stream
             return
         end
 
-        @sendq << XML.new_element('proceed', 'urn:ietf:params:xml:ns:xmpp-tls')
+        @sendq << XML.new_element('proceed', XML::NS::TLS)
 
         # Force a write of the sendq so that the client expects
         # the TLS handshake. The event loop breaks it otherwise. Hack :/
@@ -151,8 +149,7 @@ module Stream
             rescue Exception => e
                 log(:error, "TLS error: #{e}")
 
-                fai = XML.new_element('failure',
-                                      'urn:ietf:params:xml:ns:xmpp-tls')
+                fai = XML.new_element('failure', XML::NS::TLS)
                 @sendq << fai
 
                 self.dead = true
@@ -166,7 +163,7 @@ module Stream
     # For now, we're only doing SASL PLAIN
     def authorize(xml)
         unless xml.attributes['mechanism'] == 'PLAIN'
-            fai = XML.new_element('failure', 'urn:ietf:params:xml:ns:xmpp-sasl')
+            fai = XML.new_element('failure', XML::NS::SASL)
             fai << XML.new_element('invalid-mechanism')
 
             @sendq << fai
@@ -187,14 +184,14 @@ module Stream
         user = DB::User.find(:node => node, :domain => domain)
 
         if not user or user.password != passwd
-            fai = XML.new_element('failure', 'urn:ietf:params:xml:ns:xmpp-sasl')
+            fai = XML.new_element('failure', XML::NS::SASL)
             fai << XML.new_element('not-authorized')
 
             @sendq << fai
 
             self.dead = true
         else
-            suc = XML.new_element('success', 'urn:ietf:params:xml:ns:xmpp-sasl')
+            suc = XML.new_element('success', XML::NS::SASL)
             @sendq << suc
 
             @user = user

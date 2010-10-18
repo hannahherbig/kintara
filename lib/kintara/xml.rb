@@ -15,6 +15,14 @@
 module XML
     extend self
 
+    module NS
+        STREAM = 'urn:ietf:params:xml:ns:xmpp-streams'
+        STANZA = 'urn:ietf:params:xml:ns:xmpp-stanzas'
+        TLS    = 'urn:ietf:params:xml:ns:xmpp-tls'
+        SASL   = 'urn:ietf:params:xml:ns:xmpp-sasl'
+        BIND   = 'urn:ietf:params:xml:ns:xmpp-bind'
+    end
+
     def new_element(name, namespace = nil)
         elem = REXML::Element.new(name)
         elem.add_namespace(namespace) if namespace
