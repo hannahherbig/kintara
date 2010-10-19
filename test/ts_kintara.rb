@@ -7,6 +7,7 @@
 # encoding: utf-8
 
 require 'test/unit'
+require 'tc_timer'
 
 class NoOp < Test::Unit::TestCase
     def test_noop
