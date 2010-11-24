@@ -144,7 +144,12 @@ class Kintara
             puts '----------------------------'
             abort
         else
-            keys_to_sym!(@@config)
+            @@config = indifferent_hash(@@config)
+        end
+
+        unless @@config[:listen]
+            puts "#{ME}: configure error: no listeners defined"
+            abort
         end
 
         # Set up the SSL stuff
@@ -257,19 +262,21 @@ class Kintara
 
         # Start the listeners
         @@config[:listen].each do |type, value|
-            next unless [:c2s, :s2s].include?(type)
+            next unless %w(c2s s2s).include?(type)
 
-            bind_to, port = value.split(':')
+            value.each do |hostport|
+                bind_to, port = hostport.split(':')
 
-            @@servers << XMPP::Server.new do |s|
-                s.bind_to = bind_to
-                s.port    = port
-                s.type    = type
+                @@servers << XMPP::Server.new do |s|
+                    s.bind_to = bind_to
+                    s.port    = port
+                    s.type    = type.to_s
 
-                s.logger  = @@logger if logging
+                    s.logger  = @@logger if logging
+                end
             end
         end
-
+        
         Thread.abort_on_exception = true if @@debug
 
         @@servers.each { |s| s.thread = Thread.new { s.io_loop } }
@@ -322,20 +329,23 @@ class Kintara
     private
     #######
 
-    def keys_to_sym!(hash)
-        to_del, to_add, vals = [], [], []
+    # Converts a Hash into a Hash that allows lookup by String or Symbol
+    def indifferent_hash(hash)
+        # Hash.new blocks catch lookup failures
+        hash = Hash.new do |hash, key|
+                   hash[key.to_s] if key.is_a?(Symbol)
+               end.merge(hash)
 
-        hash.each do |k, v|
-            to_del << k
-            to_add << k.to_sym
-            vals   << v
+        # Look for any hashes inside the hash to convert
+        hash.each do |key, value|
+            # Convert this subhash
+            hash[key] = indifferent_hash(value) if value.is_a?(Hash)
+
+            # Arrays could have hashes in them
+            value.each_with_index do |arval, index|
+                hash[key][index] = indifferent_hash(arval) if arval.is_a?(Hash)
+            end if value.is_a?(Array)
         end
-
-        to_del.each { |d| hash.delete(d) }
-        to_add.each_with_index { |a, i| hash[a] = vals[i] }
-        vals.each { |v| keys_to_sym!(v) if v.is_a?(Hash) }
-
-        hash
     end
 
     def app_exit
