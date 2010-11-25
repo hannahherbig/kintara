@@ -10,7 +10,7 @@
 %w(logger optparse yaml).each { |m| require m }
 
 # Import required application modules
-%w(timer server).each { |m| require 'kintara/' + m }
+%w(loggable timer server).each { |m| require 'kintara/' + m }
 
 # XXX - Since IDN doesn't work in 1.9 yet, we're going to just make sure the
 # qualifying strings are set to be encoded as UTF-8.
@@ -39,6 +39,13 @@ end
 
 # The main application class
 class Kintara
+    ##
+    # mixins
+    include Loggable
+
+    ##
+    # constants
+
     # Project name
     ME = 'kintara'
 
@@ -49,17 +56,14 @@ class Kintara
 
     VERSION  = "#{V_MAJOR}.#{V_MINOR}.#{V_PATCH}"
 
+    ##
+    # class variables
+
     # Configuration data
     @@config = nil
 
     # Database connection
     @@db = nil
-
-    # Debug mode?
-    @@debug = false
-
-    # Application-wide Logger
-    @@logger = nil
 
     # A list of our servers
     @@servers = []
@@ -97,8 +101,10 @@ class Kintara
 
         # Some defaults for state
         logging  = true
+        debug    = false
         willfork = RUBY_PLATFORM =~ /win32/i ? false : true
         wd       = Dir.getwd
+        @logger  = nil
 
         # Do command-line options
         opts = OptionParser.new
@@ -109,7 +115,7 @@ class Kintara
         qd = 'Disable regular logging.'
         vd = 'Display version information.'
 
-        opts.on('-d', '--debug',   dd) { @@debug  = true  }
+        opts.on('-d', '--debug',   dd) { debug  = true  }
         opts.on('-h', '--help',    hd) { puts opts; abort }
         opts.on('-n', '--no-fork', nd) { willfork = false }
         opts.on('-q', '--quiet',   qd) { logging  = false }
@@ -123,7 +129,7 @@ class Kintara
         end
 
         # Interpreter warnings
-        $-w = true if @@debug
+        $-w = true if debug
 
         # Signal handlers
         trap(:INT)   { app_exit }
@@ -172,7 +178,7 @@ class Kintara
             @@ssl_context = ctx
         end
 
-        if @@debug
+        if debug
             puts "#{ME}: warning: debug mode enabled"
             puts "#{ME}: warning: all streams will be logged in the clear!"
         end
@@ -234,19 +240,26 @@ class Kintara
             $stderr.close
 
             # Set up logging
-            if logging or @@debug
-                @@logger = Logger.new('var/kintara.log', 'weekly')
+            if logging or debug
+                Dir.mkdir('var') unless Dir.exists?('Dir')
+                self.logger = Logger.new('var/kintara.log', 'weekly')
             end
         else
             puts "#{ME}: pid #{Process.pid}"
             puts "#{ME}: running in foreground mode from #{Dir.getwd}"
 
             # Set up logging
-            @@logger = Logger.new($stdout) if logging or @@debug
+            self.logger = Logger.new($stdout) if logging or debug
         end
 
-        # Log our SQL statements if debugging
-        @@db.loggers << @@logger if @@debug
+        if debug
+            @@db.loggers << @logger
+            log_level = :debug
+        else
+            log_level = @@config[:logging].to_sym
+        end
+
+        self.log_level = log_level if logging
 
         #u = DB::User.new
         #u.node = 'rakaur'
@@ -272,12 +285,12 @@ class Kintara
                     s.port    = port
                     s.type    = type.to_s
 
-                    s.logger  = @@logger if logging
+                    s.logger  = @logger if logging
                 end
             end
         end
         
-        Thread.abort_on_exception = true if @@debug
+        Thread.abort_on_exception = true if debug
 
         @@servers.each { |s| s.thread = Thread.new { s.io_loop } }
         @@servers.each { |s| s.thread.join }
@@ -299,10 +312,6 @@ class Kintara
 
     def Kintara.db
         @@db
-    end
-
-    def Kintara.debug
-        @@debug
     end
 
     def Kintara.ssl_context
@@ -349,7 +358,7 @@ class Kintara
     end
 
     def app_exit
-        @@logger.close if @@logger
+        @logger.close if @logger
         File.delete('var/kintara.pid')
         exit
     end

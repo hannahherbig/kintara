@@ -7,6 +7,42 @@
 # encoding: utf-8
 
 module Loggable
+
+    #
+    # I use this to override the log formatting.
+    # There's no documented way to do this; I had to figure it out.
+    # That means this could break, and it's not "right."
+    #
+    class Formatter
+        FORMAT = "%s, [%s] %s: %s\n"
+        PN_RE  = /\:in \`.+\'/
+
+        ######
+        public
+        ######
+
+        #
+        # Called by Logger to format the message.
+        # ---
+        # severity:: String
+        # time:: Time
+        # progname:: String
+        # msg:: strictly anything, for us String
+        #
+        def call(severity, time, progname, msg)
+            datetime = time.strftime('%m/%d %H:%M:%S')
+
+            # Include filename, line number, and method name in debug
+            if severity == "DEBUG"
+                progname.gsub!(PN_RE, '')
+                progname.gsub!('block in ', '')
+                "[%s] %s: %s\n" % [datetime, progname, msg]
+            else
+                "[%s] %s\n" % [datetime, msg]
+            end
+        end
+    end
+
     ##
     # Logs a regular message.
     # ---
@@ -27,31 +63,33 @@ module Loggable
     # returns:: +self+
     #
     def logger=(logger)
+        logger.level = @logger.level if @logger and logger
+
         @logger = logger
 
         # Set to false/nil to disable logging...
         return unless @logger
 
-        @logger.datetime_format = '%m/%d %H:%M:%S '
+        @logger.formatter = Formatter.new
+    end
 
-        case Kintara.config[:logging]
-        when 'none'
+    def log_level=(level)
+        case level
+        when :none
             @logger = nil
-        when 'fatal'
+        when :fatal
             @logger.level = Logger::FATAL
-        when 'error'
+        when :error
             @logger.level = Logger::ERROR
-        when 'warning'
+        when :warning
             @logger.level = Logger::WARN
-        when 'info'
+        when :info
             @logger.level = Logger::INFO
-        when 'debug'
+        when :debug
             @logger.level = Logger::DEBUG
         else
             @logger.level = Logger::WARN
         end
-
-        @logger.level = Logger::DEBUG if Kintara.debug
     end
 end # module Loggable
 

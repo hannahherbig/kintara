@@ -16,7 +16,8 @@ module XMPP
 
 # This class acts as a TCP server and handles all clients connected to it.
 class Server
-    # Add the logging methods
+    ##
+    # mixins
     include Loggable
 
     ##
@@ -45,12 +46,11 @@ class Server
         @eventq = EventQueue.new
 
         # Our Logger object
+        @logger     = nil
         self.logger = nil
 
         # If we have a block let it set up our instance attributes
         yield(self) if block_given?
-
-        @logger.progname = "#@bind_to:#@port"
 
         log(:debug, "new #@type server at #@bind_to:#@port")
 
