@@ -90,10 +90,12 @@ module Stream
 
         if @state.include?(:sasl) and @state.include?(:tls)
             log(:debug, "TLS/SASL stream established")
+            log(:info, "client from #@host successfully authenticated")
         elsif @state == [:sasl]
             log(:debug, "SASL stream established")
         elsif @state == [:tls]
             log(:debug, "TLS stream established")
+            log(:info, "client from #@host established secure connection")
         elsif @state.empty?
             log(:debug, "stream established")
             return
@@ -146,6 +148,9 @@ module Stream
 
             begin
                 socket.accept
+                socket.sync_close = true
+            rescue IO::WaitReadable
+                retry
             rescue Exception => e
                 log(:error, "TLS error: #{e}")
 
@@ -156,6 +161,11 @@ module Stream
             else
                 @socket = socket
                 @state << :tls
+            #ensure
+            #    errors = Hash.new
+            #    OpenSSL::X509.constants.grep(/^V_(ERR_|OK)/).each do |name|
+            #        errors[OpenSSL::X509.const_get(name)] = name
+            #    end
             end
         end
     end

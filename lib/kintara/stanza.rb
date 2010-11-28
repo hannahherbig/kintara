@@ -30,6 +30,9 @@ module StanzaProcessor
         s_type = stanza.name
         s_to   = stanza.attributes['to']
 
+        # Doing this here makes the flow control prettier
+        node, domain, resource = XML.split_xid(s_to)
+
         # Features valid only when not fully connected
         case s_type
         when 'starttls'
@@ -62,9 +65,7 @@ module StanzaProcessor
             end
 
         # Section 11.2 - 'to' domain is local
-        elsif Kintara.config[:domains].include?(s_domain)
-            node, domain, resource = XML.split_xid(s_to)
-
+        elsif Kintara.config[:domains].include?(domain)
             # Section 11.2.1 - mere domain
             if not node and not resource
                 if s_type == 'iq'

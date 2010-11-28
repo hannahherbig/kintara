@@ -174,6 +174,9 @@ class Kintara
             ctx.key  = pkey
 
             ctx.verify_mode = OpenSSL::SSL::VERIFY_NONE
+            ctx.options     = OpenSSL::SSL::OP_NO_TICKET
+            ctx.options    |= OpenSSL::SSL::OP_NO_SSLv2
+            ctx.options    |= OpenSSL::SSL::OP_ALL
 
             @@ssl_context = ctx
         end

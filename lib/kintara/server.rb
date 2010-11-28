@@ -97,7 +97,11 @@ class Server
     end
 
     def new_connection
-        newsock = @socket.accept_nonblock
+        begin
+            newsock = @socket.accept_nonblock
+        rescue IO::WaitReadable
+            return
+        end
 
         # This is to get around some silly IPv6 stuff
         host = newsock.peeraddr[3].sub('::ffff:', '')

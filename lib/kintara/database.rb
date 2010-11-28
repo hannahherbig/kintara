@@ -18,7 +18,7 @@ module DB
         one_to_many :roster_entries
         one_to_many :offline_stanzas
 
-        def User.xid_find(xid)
+        def User.find_xid(xid)
             node, domain, resource = XML.split_xid(xid)
             User.find(:node => node, :domain => domain)
         end

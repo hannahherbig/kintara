@@ -50,11 +50,12 @@ module XML
              \/?              # optional slash
              (?:              # non-capturing group
                  ([^\s\/@]+)  # optional anything-but-slash|@
-             )                # close non-capturing group
+             )?               # close non-capturing group
              $                # end of string
              /x
 
     def split_xid(xid)
+        return [nil, nil, nil] if not xid or xid.empty?
         XID_RE.match(xid).captures
     end
 
