@@ -2,7 +2,7 @@
 # kintara: malkier xmpp server
 # lib/kintara/client.rb: represents an XMPP client
 #
-# Copyright (c) 2003-2010 Eric Will <rakaur@malkier.net>
+# Copyright (c) 2003-2011 Eric Will <rakaur@malkier.net>
 #
 # encoding: utf-8
 

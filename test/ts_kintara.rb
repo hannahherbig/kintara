@@ -2,7 +2,7 @@
 # kintara: malkier xmpp server
 # test/ts_kintara.rb: unit testing
 #
-# Copyright (c) 2003-2010 Eric Will <rakaur@malkier.net>
+# Copyright (c) 2003-2011 Eric Will <rakaur@malkier.net>
 #
 # encoding: utf-8
 
