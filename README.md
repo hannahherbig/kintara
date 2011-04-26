@@ -9,14 +9,15 @@ Information and repositories can be found on [GitHub][].
 
 This application requires the following to be installed:
 
-  - ruby (>= 1.8.6, >= 1.9.1)
+  - ruby (>= 1.8.7, >= 1.9.2) (MRI and rbx known to work)
   - openssl
   - rake (`gem install --remote rake`)
   - sequel (`gem install --remote sequel`)
 
 OpenSSL is required for TLS encrypted streams. Rake is required for unit tests
-and package management. Sequel is required for database management. Once all
-dependicies are met, edit `etc/config.yml` to your liking and go!
+and package management. Sequel is required for database management. If you want
+to run the tests, you'll also need bacon. Once all the dependencies are met,
+edit `bin/kintara` to your liking and go!
 
 TABLE OF CONTENTS
 -----------------

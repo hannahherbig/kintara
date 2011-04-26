@@ -1,5 +1,7 @@
+*.rbc
 var
 etc/kintara.db
 etc/server.crt
 etc/server.key
 Gemfile.lock
+doc/dsl.txt

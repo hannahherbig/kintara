@@ -1,10 +1,15 @@
 #!/usr/bin/env ruby
+#
 # kintara: malkier xmpp server
 # bin/kintara: instantiates a new +Kintara+ object
 #
 # Copyright (c) 2003-2011 Eric Will <rakaur@malkier.net>
 #
 # encoding: utf-8
+
+#
+# DO NOT EDIT YET!
+#
 
 # Prepare the environment
 $: << File.join(Dir.getwd, 'lib')
@@ -13,13 +18,82 @@ $0 = 'kintara'
 # Import required application modules
 require 'kintara'
 
-# Start a new instance of the application
-begin
-    Kintara.new
-rescue Exception => err
-    # XXX - eventually put logging and such here.
-    raise
+#
+# This is the configuration. Edit from here down.
+#
+# HOW TO USE THIS FILE:
+#
+# This file is, strictly speaking, a Ruby script. We've provided
+# methods that allow the configuration to be simple and human-readable.
+# Anything that works in Ruby will technically work here, but we
+# suggest sticking with the basics unless you know what you're doing.
+#
+# Unquoted strings are interpreted as Ruby statements. Numbers do not
+# need to be encapsulted within quotes. If your string is basic alphanumeric
+# you can use a :symbol (prefixing your string with a colon instead of
+# encapsulting it with quotations) as it is less noisy.
+#
+configure do
+
+  # How much logging should we do?
+  # In order of least verbose to most verbose:
+  # none, fatal, error, warning, info, debug
+  #
+  logging :info
+
+  # Define ports the daemon should listen on for incoming connections.
+  # You may optionally provide an IP/host to bind to. The default
+  # is to bind to all hosts. All ports serve all virtual hosts.
+  #
+  # We use a different port to talk to other servers. Omit this if you
+  # want to disable federation.
+  #
+  listen_for_clients 5222
+  listen_for_servers 5269, '127.0.0.1'
+
+  # Virtual hosts specify the domain names the daemon will serve.
+  # All other settings are vhost-specific. The `virtual_hosts` directive
+  # applies these settings to all virtual hosts.
+  #
+  virtual_hosts do
+
+    # Define who may connect to this service. The default allows everyone.
+    #
+    # Other examples:
+    #     authorize '10.0.1.1', '127.0.0.1', /192\.168\.1\.(\d+)/
+    #
+    authorize /(.*)/
+
+    # Define who may NOT connect to this service. You may provide a reason.
+    #
+    #deny '127.0.0.1', :reason => 'Do not connect from the local machine!'
+
+    # This is here to make sure you're paying attention.
+    #abort "You didn't read your configuration!"
+
+    # There's a special type of user called an operator. These users
+    # are allowed certain privileges on the server such as sending
+    # server-wide messages, adding/removing users by hand, etc.
+    #
+    operator :rakaur, :flags => [:announce, :add, :remove]
+  end
+
+  virtual_host 'malkier.net' do
+
+    # The information we need for TLS/SSL.
+    # If you're like most people you'll need to generate
+    # your own, self-signed certificate rather than pay
+    # an ungodly sum of money to some company. In order to
+    # do this you need to run something along the lines of:
+    #
+    #     openssl req -new -x509 -days 365 -sha1 -newkey rsa:1024 \
+    #                 -nodes -keyout server.key -out server.crt \
+    #                 -subj '/O=Company/OU=Department/CN=xmpp.example.com'
+    #
+    # Use the resulting "server.crt" file for ssl_certificate.
+    # Use the resulting "server.key" file for ssl_private_key.
+    #
+    ssl_certificate 'etc/server.crt'
+    ssl_private_key 'etc/server.key'
+  end
 end
-
-exit 0
-

@@ -7,35 +7,30 @@
 # encoding: utf-8
 
 # Import required Ruby modules
-%w(logger optparse yaml).each { |m| require m }
+require 'logger'
+require 'optparse'
 
 # Import required application modules
-%w(loggable timer server).each { |m| require 'kintara/' + m }
+require 'kintara/config'
+require 'kintara/loggable'
+require 'kintara/timer'
+require 'kintara/server'
 
 # XXX - Since IDN doesn't work in 1.9 yet, we're going to just make sure the
 # qualifying strings are set to be encoded as UTF-8.
 Encoding.default_internal = 'UTF-8'
 Encoding.default_external = 'UTF-8'
 
-# Check for Sequel
+# Check for Sequel & SQLite
 begin
-    require 'sequel'
-rescue LoadError
-    puts 'kintara: unable to load Sequel'
+    lib = nil
+    %w(sequel sqlite3).each { |m| lib = m; require lib }
+rescue LoadError => e
+    puts "kintara: could not load #{lib}"
     puts 'kintara: this library is required for database storage'
-    puts 'kintara: gem install --remote sequel'
+    puts "kintara: gem install --remote #{lib}"
     abort
 end
-
-# XXX - for quick reference
-#
-# { :domains => "malkier.net, optera.org",
-#   :listen  => { :c2s => "*:5222",
-#                 :s2s => "*:5269",
-#                 :certificate => "etc/cert.pem" },
-#   :authorize => { :matches => "(.*)" },
-#                   :deny    => nil,
-#   :operators => { :rakaur  => "announce" }
 
 # The main application class
 class Kintara
@@ -84,12 +79,12 @@ class Kintara
         puts "#{ME}: version #{VERSION} [#{RUBY_PLATFORM}]"
 
         # Check to see if we're running on a decent version of ruby
-        if RUBY_VERSION < '1.8.6'
-            puts "#{ME}: requires at least ruby 1.8.6"
+        if RUBY_VERSION < '1.8.7'
+            puts "#{ME}: requires at least ruby 1.8.7"
             puts "#{ME}: you have #{RUBY_VERSION}"
             abort
-        elsif RUBY_VERSION < '1.9.1'
-            puts "#{ME}: supports ruby 1.9 (much faster)"
+        elsif RUBY_VERSION < '1.9.2'
+            puts "#{ME}: requires at least ruby 1.9.2"
             puts "#{ME}: you have #{RUBY_VERSION}"
         end
 
@@ -115,7 +110,7 @@ class Kintara
         qd = 'Disable regular logging.'
         vd = 'Display version information.'
 
-        opts.on('-d', '--debug',   dd) { debug  = true  }
+        opts.on('-d', '--debug',   dd) { debug    = true  }
         opts.on('-h', '--help',    hd) { puts opts; abort }
         opts.on('-n', '--no-fork', nd) { willfork = false }
         opts.on('-q', '--quiet',   qd) { logging  = false }
@@ -141,44 +136,31 @@ class Kintara
         trap(:TTOU)  { :SIG_IGN }
         trap(:TSTP)  { :SIG_IGN }
 
-        # Load configuration file
-        begin
-            @@config = YAML.load_file('etc/config.yml')
-        rescue Exception => e
-            puts '----------------------------'
-            puts "#{ME}: configure error: #{e}"
-            puts '----------------------------'
-            abort
-        else
-            @@config = indifferent_hash(@@config)
-        end
-
-        unless @@config[:listen]
-            puts "#{ME}: configure error: no listeners defined"
-            abort
-        end
-
         # Set up the SSL stuff
-        certfile = @@config[:listen][:certificate]
-        keyfile  = @@config[:listen][:private_key]
+        @@config.vhosts.each do |vhost|
+            next unless vhost.ssl_certfile and vhost.ssl_keyfile
 
-        begin
-            cert = OpenSSL::X509::Certificate.new(File.read(certfile))
-            pkey = OpenSSL::PKey::RSA.new(File.read(keyfile))
-        rescue Exception => e
-            puts "#{ME}: configuration error: #{e}"
-            abort
-        else
-            ctx      = OpenSSL::SSL::SSLContext.new
-            ctx.cert = cert
-            ctx.key  = pkey
+            certfile = vhost.ssl_certfile
+            keyfile  = vhost.ssl_keyfile
 
-            ctx.verify_mode = OpenSSL::SSL::VERIFY_NONE
-            ctx.options     = OpenSSL::SSL::OP_NO_TICKET
-            ctx.options    |= OpenSSL::SSL::OP_NO_SSLv2
-            ctx.options    |= OpenSSL::SSL::OP_ALL
+            begin
+                cert = OpenSSL::X509::Certificate.new(File.read(certfile))
+                pkey = OpenSSL::PKey::RSA.new(File.read(keyfile))
+            rescue Exception => e
+                puts "#{ME}: configuration error: #{e}"
+                abort
+            else
+                ctx      = OpenSSL::SSL::SSLContext.new
+                ctx.cert = cert
+                ctx.key  = pkey
 
-            @@ssl_context = ctx
+                ctx.verify_mode = OpenSSL::SSL::VERIFY_NONE
+                ctx.options     = OpenSSL::SSL::OP_NO_TICKET
+                ctx.options    |= OpenSSL::SSL::OP_NO_SSLv2
+                ctx.options    |= OpenSSL::SSL::OP_ALL
+
+                vhost.ssl_context = ctx
+            end
         end
 
         if debug
@@ -189,6 +171,7 @@ class Kintara
         # Load database
         no_db = true if not File.exists?('etc/kintara.db')
 
+        $-w = false # Sequel has warnings
         begin
             @@db = Sequel.sqlite('etc/kintara.db')
         rescue Exception => e
@@ -203,6 +186,7 @@ class Kintara
             puts "#{ME}: creating new database..."
             DB.initialize
         end
+        $-w = true if debug # Done with Sequel
 
         # Check to see if we're already running
         if File.exists?('var/kintara.pid')
@@ -259,7 +243,7 @@ class Kintara
             @@db.loggers << @logger
             log_level = :debug
         else
-            log_level = @@config[:logging].to_sym
+            log_level = @@config.log_level.to_sym
         end
 
         self.log_level = log_level if logging
@@ -277,22 +261,16 @@ class Kintara
         # XXX - timers
 
         # Start the listeners
-        @@config[:listen].each do |type, value|
-            next unless %w(c2s s2s).include?(type)
+        @@config.listeners.each do |listener|
+            @@servers << XMPP::Server.new do |s|
+                s.bind_to = listener.bind_to
+                s.port    = listener.port
+                s.type    = listener.type.to_sym
 
-            value.each do |hostport|
-                bind_to, port = hostport.split(':')
-
-                @@servers << XMPP::Server.new do |s|
-                    s.bind_to = bind_to
-                    s.port    = port
-                    s.type    = type.to_s
-
-                    s.logger  = @logger if logging
-                end
+                s.logger  = @logger if logging
             end
         end
-        
+
         Thread.abort_on_exception = true if debug
 
         @@servers.each { |s| s.thread = Thread.new { s.io_loop } }
@@ -308,10 +286,6 @@ class Kintara
     ######
     public
     ######
-
-    def Kintara.config
-        @@config
-    end
 
     def Kintara.db
         @@db
