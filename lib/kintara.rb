@@ -80,8 +80,8 @@ class Kintara
         # Check to see if we're running on a decent version of ruby
         if RUBY_VERSION < '1.9' and RUBY_VERSION < '1.8.7'
             puts "#{ME}: requires at least ruby 1.8.7"
-            puts "#{ME}: you have #{RUBY_VERSION}
-            abort"
+            puts "#{ME}: you have #{RUBY_VERSION}"
+            abort
         elsif RUBY_VERSION > '1.9' and RUBY_VERSION < '1.9.2'
             puts "#{ME}: requires at least ruby 1.9.2"
             puts "#{ME}: you have #{RUBY_VERSION}"
