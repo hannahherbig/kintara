@@ -4,13 +4,15 @@
 #
 # Copyright (c) 2003-2011 Eric Will <rakaur@malkier.net>
 #
-# encoding: utf-8
 
 # Import required Ruby modules
-%w(logger socket).each { |m| require m }
+require 'logger'
+require 'socket'
 
 # Import required application modules
-%w(client event loggable).each { |m| require 'kintara/' + m }
+require 'kintara/client'
+require 'kintara/event'
+require 'kintara/loggable'
 
 module XMPP
 

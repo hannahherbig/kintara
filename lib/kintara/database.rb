@@ -4,13 +4,6 @@
 #
 # Copyright (c) 2003-2011 Eric Will <rakaur@malkier.net>
 #
-# encoding: utf-8
-
-# Import required Ruby modules
-#%w().each { |m| require m }
-
-# Import required application modules
-#%w().each { |m| require m }
 
 module DB
 
@@ -58,6 +51,7 @@ module DB
     end
 
     # Sets up a new skeleton DB
+    # XXX - should probably do this stuff with migrations and rake
     def DB.initialize
         Kintara.db.create_table :users do
             primary_key :id

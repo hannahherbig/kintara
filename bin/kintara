@@ -5,7 +5,6 @@
 #
 # Copyright (c) 2003-2011 Eric Will <rakaur@malkier.net>
 #
-# encoding: utf-8
 
 #
 # DO NOT EDIT YET!
@@ -15,7 +14,7 @@
 $: << File.join(Dir.getwd, 'lib')
 $0 = 'kintara'
 
-# Import required application modules
+require 'rubygems'
 require 'kintara'
 
 #

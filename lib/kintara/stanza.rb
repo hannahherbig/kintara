@@ -4,13 +4,9 @@
 #
 # Copyright (c) 2003-2011 Eric Will <rakaur@malkier.net>
 #
-# encoding: utf-8
-
-# Import required Ruby modules
-#%w().each { |m| require m }
 
 # Import required application modules
-%w(xml).each { |m| require 'kintara/' + m }
+require 'kintara/xml'
 
 module XMPP
 
@@ -65,7 +61,7 @@ module StanzaProcessor
             end
 
         # Section 11.2 - 'to' domain is local
-        elsif Kintara.config[:domains].include?(domain)
+        elsif Kintara.config.vhosts.keys.include?(domain)
             # Section 11.2.1 - mere domain
             if not node and not resource
                 if s_type == 'iq'

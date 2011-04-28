@@ -4,7 +4,6 @@
 #
 # Copyright (c) 2003-2011 Eric Will <rakaur@malkier.net>
 #
-# encoding: utf-8
 
 class Timer
     # A list of all running timers

@@ -4,14 +4,19 @@
 #
 # Copyright (c) 2003-2011 Eric Will <rakaur@malkier.net>
 #
-# encoding: utf-8
 
 # Import required Ruby modules
-%w(document parsers/sax2parser).each { |m| require 'rexml/' + m }
-%w(digest/md5 openssl).each { |m| require m }
+require 'rexml/document'
+require 'rexml/parsers/sax2parser'
+
+require 'digest/md5'
+require 'openssl'
 
 # Import required application modules
-%w(iq loggable stanza stream).each { |m| require 'kintara/' + m }
+require 'kintara/iq'
+require 'kintara/loggable'
+require 'kintara/stanza'
+require 'kintara/stream'
 
 #
 # This is kind of a hack.
@@ -62,9 +67,6 @@ class Client
     ##
     # XXX
     def initialize(host, socket)
-        # The hostname our client connected to
-        @connect_host = nil
-
         # Is our socket dead?
         @dead = false
 
@@ -99,6 +101,9 @@ class Client
 
         # Our DB user object
         @user = nil
+
+        # The OpenStruct from configuration
+        @vhost = nil
 
         # The current XML stanza we're parsing
         @xml = nil

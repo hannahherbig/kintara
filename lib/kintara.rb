@@ -4,7 +4,6 @@
 #
 # Copyright (c) 2003-2011 Eric Will <rakaur@malkier.net>
 #
-# encoding: utf-8
 
 # Import required Ruby modules
 require 'logger'
@@ -15,11 +14,6 @@ require 'kintara/config'
 require 'kintara/loggable'
 require 'kintara/timer'
 require 'kintara/server'
-
-# XXX - Since IDN doesn't work in 1.9 yet, we're going to just make sure the
-# qualifying strings are set to be encoded as UTF-8.
-Encoding.default_internal = 'UTF-8'
-Encoding.default_external = 'UTF-8'
 
 # Check for Sequel & SQLite
 begin
@@ -78,20 +72,33 @@ class Kintara
     def initialize
         puts "#{ME}: version #{VERSION} [#{RUBY_PLATFORM}]"
 
+        # XXX 1.8 doesn't work atm because of IO::WaitReadable
+        if RUBY_VERSION < '1.8.8'
+            puts "#{ME}: support for 1.8 is broken due to IO::WaitReadable"
+        end
+
         # Check to see if we're running on a decent version of ruby
-        if RUBY_VERSION < '1.8.7'
+        if RUBY_VERSION < '1.9' and RUBY_VERSION < '1.8.7'
             puts "#{ME}: requires at least ruby 1.8.7"
-            puts "#{ME}: you have #{RUBY_VERSION}"
-            abort
-        elsif RUBY_VERSION < '1.9.2'
+            puts "#{ME}: you have #{RUBY_VERSION}
+            abort"
+        elsif RUBY_VERSION > '1.9' and RUBY_VERSION < '1.9.2'
             puts "#{ME}: requires at least ruby 1.9.2"
             puts "#{ME}: you have #{RUBY_VERSION}"
+            abort
         end
 
         # Check to see if we're running as root
         if Process.euid == 0
             puts "#{ME}: refuses to run as root"
             abort
+        end
+
+        # XXX - Since IDN doesn't work in 1.9 yet, we're going to just
+        # make sure the qualifying strings are set to be encoded as UTF-8.
+        if RUBY_VERSION >= '1.9.2'
+            Encoding.default_internal = 'UTF-8'
+            Encoding.default_external = 'UTF-8'
         end
 
         # Some defaults for state
@@ -137,8 +144,9 @@ class Kintara
         trap(:TSTP)  { :SIG_IGN }
 
         # Set up the SSL stuff
-        @@config.vhosts.each do |vhost|
-            next unless vhost.ssl_certfile and vhost.ssl_keyfile
+        @@config.vhosts.each do |name, vhost|
+            next unless vhost.respond_to?(:ssl_certfile)
+            next unless vhost.respond_to?(:ssl_keyfile)
 
             certfile = vhost.ssl_certfile
             keyfile  = vhost.ssl_keyfile
@@ -255,7 +263,7 @@ class Kintara
         #u.save
 
         # Write the PID file
-        Dir.mkdir('var') unless Dir.exists?('var')
+        Dir.mkdir('var') unless File.exists?('var')
         File.open('var/kintara.pid', 'w') { |f| f.puts(Process.pid) }
 
         # XXX - timers
@@ -265,7 +273,7 @@ class Kintara
             @@servers << XMPP::Server.new do |s|
                 s.bind_to = listener.bind_to
                 s.port    = listener.port
-                s.type    = listener.type.to_sym
+                s.type    = listener.kind.to_sym
 
                 s.logger  = @logger if logging
             end

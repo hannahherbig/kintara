@@ -4,12 +4,12 @@
 #
 # Copyright (c) 2003-2011 Eric Will <rakaur@malkier.net>
 #
-# encoding: utf-8
 
 # Import required Ruby modules.
-%w(rake/rdoctask rake/testtask rake/gempackagetask rake/packagetask).each do |m|
-    require m
-end
+require 'rake/rdoctask'
+require 'rake/testtask'
+require 'rake/gempackagetask'
+require 'rake/packagetask'
 
 VER = '0.1.0'
 

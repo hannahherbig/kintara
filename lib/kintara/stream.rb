@@ -4,13 +4,6 @@
 #
 # Copyright (c) 2003-2011 Eric Will <rakaur@malkier.net>
 #
-# encoding: utf-8
-
-# Import required Ruby modules
-#%w().each { |m| require m }
-
-# Import required application modules
-#%w().each { |m| require m }
 
 module XMPP
 
@@ -74,7 +67,7 @@ module Stream
         xmlto ||= Kintara.config[:domains].first
         stanza  = []
 
-        @connect_host = xmlto
+        @vhost = Kintara.config.vhosts[xmlto]
 
         stanza << "<?xml version='1.0'?>"
         stanza << "<stream:stream "
@@ -144,7 +137,15 @@ module Stream
         @eventq.post(:tls_callback)
 
         @eventq.handle(:tls_callback) do
-            socket = OpenSSL::SSL::SSLSocket.new(@socket, Kintara.ssl_context)
+
+            # Figure out which SSLContext to use
+            if @vhost.respond_to?(:ssl_certfile)
+                context = @vhost.ssl_context
+            else
+                context = Kintara.config.vhosts[:all].ssl_context
+            end
+
+            socket = OpenSSL::SSL::SSLSocket.new(@socket, context)
 
             begin
                 socket.accept
@@ -189,7 +190,7 @@ module Stream
         passwd  = Digest::MD5.hexdigest(passwd)
 
         node, domain = authzid.split('@')
-        domain      ||= @connect_host
+        domain      ||= @vhost.name
 
         user = DB::User.find(:node => node, :domain => domain)
 

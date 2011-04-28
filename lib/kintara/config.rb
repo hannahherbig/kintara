@@ -4,8 +4,8 @@
 #
 # Copyright (c) 2003-2011 Eric Will <rakaur@malkier.net>
 #
-# encoding: utf-8
 
+# Objects that are liberal with `method_missing`
 require 'ostruct'
 
 def configure(&block)
@@ -16,6 +16,7 @@ def configure(&block)
 end
 
 class Kintara
+    # Application-wide configuration settings
     @@config = nil
 
     def Kintara.config; @@config; end
@@ -25,13 +26,13 @@ class Kintara
         attr_reader :listeners, :log_level, :vhosts
 
         def initialize(&block)
-            @listeners = []
-            @log_level = :info
-            @vhosts    = []
+            @listeners = []    # List of ports to listen on
+            @log_level = :info # How much information should we log?
+            @vhosts    = {}    # Hosts that we'll service
         end
 
         def verify
-            # XXX
+            # XXX - Configuration#verify
         end
 
         def logging(level)
@@ -48,14 +49,14 @@ class Kintara
 
         def listen_for_clients(*args)
             listener      = prep_listener(*args)
-            listener.type = :c2s
+            listener.kind = :c2s
 
             @listeners << listener
         end
 
         def listen_for_servers(*args)
             listener      = prep_listener(*args)
-            listener.type = :s2s
+            listener.kind = :s2s
 
             @listeners << listener
         end
@@ -71,7 +72,7 @@ class Kintara
             vhost.extend(ConfigVirtualHost)
             vhost.instance_eval(&block)
 
-            @vhosts << vhost
+            @vhosts[name] = vhost
         end
     end
 
