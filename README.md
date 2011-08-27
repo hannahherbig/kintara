@@ -5,7 +5,7 @@ This application is free but copyrighted software; see `doc/license.txt`.
 
 Information and repositories can be found on [GitHub][].
 
-[github]: http://github.com/rakaur/kintara/
+[github]: http://github.com/malkier/kintara/
 
 This application requires the following to be installed:
 
@@ -25,8 +25,8 @@ TABLE OF CONTENTS
   2. Contact and Support
   3. References
 
-1. CREDITS
-----------
+1\. CREDITS
+-----------
 
 This is a clean, RFC-compliant XMPP server. It doesn't require a system-wide
 installation making it suitable for shell servers. The server should happily
@@ -58,8 +58,8 @@ and especially stpeter for answering my endless questions about the RFCs:
 
   - stpeter, Peter Saint-Andre <stpeter@jabber.org>
 
-2. CONTACT AND SUPPORT
-----------------------
+2\. CONTACT AND SUPPORT
+-----------------------
 
 For bug or feature reports, please use GitHub's [issue tracking][1].
 
@@ -75,8 +75,8 @@ is rakaur@malkier.net. Alternatively, you can find me on irc.malkier.net.
 If you've read this far, congratulations. You are among the few elite people
 that actually read documentation. Thank you.
 
-3. REFERENCES
--------------
+3\. REFERENCES
+--------------
 
     [   XMPP-CORE] -- RFC 3920 -- XMPP: Core
     [     XMPP-IM] -- RFC 3921 -- XMPP: Instant Messaging and Presence
